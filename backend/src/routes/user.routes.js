@@ -1,0 +1,25 @@
+const { Router } = require('express');
+const { registerUser,loginUser,getLoggedInUser,getAllUsers,updateUser,deleteUser,updatePassword} = require('../controllers/user.controller');
+const auth = require('../middleware/auth');
+
+const router = Router();
+
+// @route   POST /api/users/register
+// @desc    Registra un nuevo usuario
+// @access  Public (eventualmente será privado para Admins)
+router.post('/register', registerUser);
+// @route   POST /api/users/login
+// @desc    Autentica un usuario y devuelve un token
+// @access  Public
+router.post('/login', loginUser);
+// @route   GET /api/users/me
+// @desc    Obtener datos del usuario logueado
+// @access  Private
+router.get('/me', auth, getLoggedInUser); // Asegúrate de importar getLoggedInUser
+
+router.get('/', auth, getAllUsers);
+router.put('/:id', auth, updateUser);
+router.delete('/:id', auth, deleteUser);
+router.put('/:id/password', auth, updatePassword);
+
+module.exports = router;

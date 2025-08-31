@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+  --font-family-orbitron: "Orbitron", sans-serif;
+  --font-family-tech-mono: "Share Tech Mono", monospace;
+}
