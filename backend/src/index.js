@@ -13,6 +13,12 @@ const io = new Server(server, {
     }
 });
 
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    credentials: true
+};
+app.use(cors(corsOptions));
+
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
