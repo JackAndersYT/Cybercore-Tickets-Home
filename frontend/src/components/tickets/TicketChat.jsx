@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import ticketService from '../../services/ticketService';
 import socket from '../../services/socket';
-import { Check, CheckCheck, Zap, SendHorizontal, Paperclip, X, File as FileIcon } from 'lucide-react';
+import { Check, CheckCheck, Zap, SendHorizontal, Paperclip, X, File as FileIcon, User, Users } from 'lucide-react';
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
 import { API_BASE_URL } from '../../config'; 
@@ -18,7 +18,6 @@ const TicketChat = ({
     isExpanded = false, 
     className = '', 
     style = {},
-    // Props controladas por el padre
     onlineUsers = [],
     isSocketConnected = false,
     disableSocketManagement = false
@@ -37,23 +36,70 @@ const TicketChat = ({
     const [imageIndex, setImageIndex] = useState(0);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-    // *** REMOVER ESTADO LOCAL DE SOCKET - USAR SOLO LAS PROPS DEL PADRE ***
-    // Estado local solo se usa si no está deshabilitado
     const [localIsConnected, setLocalIsConnected] = useState(socket.connected);
     const [localOnlineUsers, setLocalOnlineUsers] = useState([]);
     
-    // Determinar qué estado usar
     const currentIsConnected = disableSocketManagement ? isSocketConnected : localIsConnected;
     const currentOnlineUsers = disableSocketManagement ? onlineUsers : localOnlineUsers;
+
+    // Función para obtener la URL completa del archivo
+    const getFullFileUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http')) return url;
+        return `${API_BASE_URL}${url}`;
+    };
+
+    // Obtener el nombre del otro usuario en el chat
+    const otherUserName = useMemo(() => {
+        if (messages.length > 0) {
+            const otherMessage = messages.find(msg => msg.SenderID !== user.UserID);
+            return otherMessage ? otherMessage.SenderFullName : 'Chat';
+        }
+        return 'Chat';
+    }, [messages, user.UserID]);
+
+    // Verificar si el otro usuario está en línea
+    const isOtherUserOnline = useMemo(() => {
+        return currentOnlineUsers.some(u => u.UserID !== user.UserID);
+    }, [currentOnlineUsers, user.UserID]);
 
     const imageMessages = useMemo(() => 
         messages.filter(msg => msg.FileURL && msg.FileType.startsWith('image/'))
                 .map(msg => ({ 
-                    src: msg.FileURL, 
+                    src: getFullFileUrl(msg.FileURL), 
                     title: msg.FileName,
                     description: `Enviado por: ${msg.SenderFullName}`
                 }))
     , [messages]);
+
+    // Agrupar mensajes consecutivos del mismo usuario
+    const groupedMessages = useMemo(() => {
+        const groups = [];
+        let currentGroup = null;
+        
+        messages.forEach(msg => {
+            const msgDate = new Date(msg.SentAt);
+            const msgDateStr = msgDate.toLocaleDateString();
+            
+            if (!currentGroup || 
+                currentGroup.senderId !== msg.SenderID || 
+                currentGroup.date !== msgDateStr ||
+                (new Date(msg.SentAt) - new Date(currentGroup.messages[currentGroup.messages.length - 1].SentAt)) > 60000) {
+                currentGroup = {
+                    senderId: msg.SenderID,
+                    senderName: msg.SenderFullName,
+                    date: msgDateStr,
+                    messages: [msg],
+                    isOwn: msg.SenderID === user.UserID
+                };
+                groups.push(currentGroup);
+            } else {
+                currentGroup.messages.push(msg);
+            }
+        });
+        
+        return groups;
+    }, [messages, user.UserID]);
 
     const handleImageClick = (clickedImageUrl) => {
         const index = imageMessages.findIndex(img => img.src === clickedImageUrl);
@@ -74,13 +120,9 @@ const TicketChat = ({
         }
     };
 
-    // Función para scroll suave solo para nuevos mensajes
-    const scrollToBottomSmooth = () => {
+    const scrollToBottom = () => {
         if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTo({
-                top: chatContainerRef.current.scrollHeight,
-                behavior: 'smooth'
-            });
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     };
 
@@ -100,25 +142,19 @@ const TicketChat = ({
 
         loadAndMarkMessages();
 
-        // *** SOLO CONFIGURAR SOCKET SI NO SE ESTÁ DESHABILITANDO LA GESTIÓN LOCAL ***
         if (!disableSocketManagement) {
-            console.log('[CHAT] Setting up local socket management');
-            // Configurar gestión local del socket
             if (!socket.connected) {
                 socket.connect();
             } else {
-                // Si ya está conectado, unirse inmediatamente
                 socket.emit('joinTicketRoom', { ticketId, user });
             }
             
             const onConnect = () => {
-                console.log('[CHAT] Socket connected locally');
                 setLocalIsConnected(true);
                 socket.emit('joinTicketRoom', { ticketId, user });
             };
             
             const onDisconnect = () => {
-                console.log('[CHAT] Socket disconnected locally');
                 setLocalIsConnected(false);
             };
 
@@ -126,24 +162,18 @@ const TicketChat = ({
             socket.on('disconnect', onDisconnect);
 
             socket.on('roomUsersUpdate', (usersInRoom) => {
-                console.log('[CHAT] Local room users update:', usersInRoom);
                 setLocalOnlineUsers(usersInRoom);
             });
             
-            // Cleanup para gestión local de socket
             return () => {
-                console.log('[CHAT] Cleaning up local socket management');
                 socket.emit('leaveTicketRoom', ticketId);
                 socket.off('connect', onConnect);
                 socket.off('disconnect', onDisconnect);
                 socket.off('roomUsersUpdate');
             };
-        } else {
-            console.log('[CHAT] Using parent socket management - no local setup needed');
         }
     }, [ticketId, user.UserID, disableSocketManagement, user]);
 
-    // Effect separado para los listeners de mensajes (siempre activos)
     useEffect(() => {
         const onNewMessage = (message) => {
             setTypingUser(null);
@@ -177,12 +207,9 @@ const TicketChat = ({
         };
     }, [ticketId, user.UserID]);
 
-    // Effect para scroll solo en nuevos mensajes (después de la carga inicial)
     useEffect(() => {
-        if (!isInitialLoad && messages.length > 0) {
-            scrollToBottomSmooth();
-        }
-    }, [messages, typingUser, isInitialLoad]);
+        scrollToBottom();
+    }, [messages, typingUser]);
 
     const handleTyping = () => {
         socket.emit('typing', { ticketId, userName: user.FullName });
@@ -220,7 +247,26 @@ const TicketChat = ({
         }
     };
 
-    // Determinar la altura del contenedor principal
+    const formatTime = (dateStr) => {
+        const date = new Date(dateStr);
+        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) {
+            return 'Hoy';
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            return 'Ayer';
+        } else {
+            return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+    };
+
     const containerHeight = isExpanded ? 'h-full' : 'h-[62vh]';
     const containerStyle = isExpanded ? { height: '100%', ...style } : style;
 
@@ -233,208 +279,192 @@ const TicketChat = ({
                 </div>
 
                 <div className={`relative bg-gray-900/70 backdrop-blur-xl border border-cyan-400/20 ${isExpanded ? 'rounded-none' : 'rounded-2xl'} overflow-hidden shadow-2xl flex flex-col h-full`}>
+                    {/* Header simplificado estilo WhatsApp */}
                     <div className="relative px-6 py-4 bg-gradient-to-r from-gray-900/90 via-gray-800/90 to-gray-900/90 border-b border-cyan-400/20 flex-shrink-0">
-    <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-            <div className="relative">
-                <Zap className="w-6 h-6 text-cyan-400" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-ping opacity-75"></div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full"></div>
-            </div>
-            <div>
-                <h3 className="text-xl font-bold font-mono bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                    Chat Interno
-                </h3>
-                <div className="text-xs text-gray-400 mt-0.5 flex items-center space-x-3">
-                    <span>Ticket #{ticketId}</span>
-                    <span className="text-gray-600">|</span>
-                    
-                    {/* Indicador de usuarios en línea mejorado */}
-                    <div className="flex items-center space-x-2">
-                        <div className="relative group">
-                            <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                                currentOnlineUsers.length > 1 
-                                    ? 'bg-emerald-400 shadow-emerald-400/50 shadow-sm animate-pulse' 
-                                    : 'bg-gray-500'
-                            }`}></div>
-                            {currentOnlineUsers.length > 1 && (
-                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-400 animate-ping opacity-30"></div>
-                            )}
-                        </div>
-                        <span className={`font-medium transition-colors duration-300 ${
-                            currentOnlineUsers.length > 1 ? 'text-emerald-400' : 'text-gray-500'
-                        }`}>
-                            {currentOnlineUsers.length} {currentOnlineUsers.length === 1 ? 'usuario' : 'usuarios'}
-                        </span>
-                    </div>
-
-                    <span className="text-gray-600">|</span>
-
-                    {/* Indicador de conexión estético */}
-                    <div className="flex items-center space-x-2">
-                        <div className="relative group cursor-help" title={`Estado: ${currentIsConnected ? 'Conectado' : 'Desconectado'}`}>
-                            <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                                currentIsConnected 
-                                    ? 'bg-cyan-400 shadow-cyan-400/50 shadow-sm' 
-                                    : 'bg-red-500 shadow-red-500/50 shadow-sm'
-                            }`}></div>
-                            {currentIsConnected && (
-                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-cyan-400 animate-ping opacity-20"></div>
-                            )}
-                        </div>
-                        <span className={`text-xs font-medium transition-colors duration-300 ${
-                            currentIsConnected ? 'text-cyan-400' : 'text-red-400'
-                        }`}>
-                            {currentIsConnected ? 'Conectado' : 'Sin conexión'}
-                        </span>
-                    </div>
-                    
-                </div>
-            </div>
-        </div>
-        
-        {/* Opcional: Indicador visual más prominente del estado de conexión */}
-        <div className="flex items-center space-x-2">
-            <div className={`relative px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
-                currentIsConnected 
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
-            }`}>
-                <div className={`absolute inset-0 rounded-full blur-sm ${
-                    currentIsConnected ? 'bg-emerald-400/10' : 'bg-red-400/10'
-                } animate-pulse`}></div>
-                <span className="relative flex items-center space-x-1.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                        currentIsConnected ? 'bg-emerald-400' : 'bg-red-400'
-                    }`}></div>
-                    <span className="uppercase tracking-wider">
-                        {currentIsConnected ? 'Online' : 'Offline'}
-                    </span>
-                </span>
-            </div>
-        </div>
-    </div>
-</div>
-
-                    {/* Contenedor de chat con flex-col-reverse para comportamiento tipo WhatsApp */}
-                    <div 
-                        ref={chatContainerRef} 
-                        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-gray-800/50 scrollbar-thumb-cyan-500/30 min-h-0"
-                        style={{ 
-                            display: 'flex',
-                            flexDirection: 'column-reverse',
-                            maxHeight: isExpanded ? 'calc(100% - 120px)' : 'auto'
-                        }}
-                    >
-                        {/* Contenedor interno para mantener el orden correcto de los mensajes */}
-                        <div className="px-6 py-4 space-y-4" style={{ 
-                            display: 'flex',
-                            flexDirection: 'column'
-                        }}>
-                            
-                            {/* Indicador de typing siempre al final (que aparece primero por el reverse) */}
-                            {typingUser && (
-                                <div className="flex justify-start">
-                                    <div className="group relative max-w-md">
-                                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20 animate-pulse blur-sm"></div>
-                                        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-gray-700/60 via-gray-600/50 to-purple-700/30 border border-purple-400/40 backdrop-blur-sm">
-                                            <div className="flex items-center space-x-2 mb-2">
-                                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
-                                                <p className="font-bold text-purple-300 text-sm">{typingUser}</p>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-gray-300 text-sm">está escribiendo</span>
-                                                <div className="flex space-x-1">
-                                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></span>
-                                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
-                                                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
-                                                </div>
-                                            </div>
-                                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                                {/* Avatar del usuario */}
+                                <div className="relative">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/30 to-purple-500/30 flex items-center justify-center border border-cyan-400/30">
+                                        <User className="w-6 h-6 text-cyan-400" />
+                                    </div>
+                                    {isOtherUserOnline && (
+                                        <>
+                                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-gray-900"></div>
+                                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full animate-ping opacity-75"></div>
+                                        </>
+                                    )}
+                                </div>
+                                
+                                {/* Información del usuario */}
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">
+                                        {otherUserName}
+                                    </h3>
+                                    <div className="flex items-center space-x-2">
+                                        {typingUser ? (
+                                            <span className="text-xs text-cyan-400 font-medium animate-pulse">
+                                                escribiendo...
+                                            </span>
+                                        ) : isOtherUserOnline ? (
+                                            <span className="text-xs text-emerald-400">
+                                                en línea
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">
+                                                Ticket #{ticketId}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
-                            {/* Mensajes en orden correcto */}
-                            {messages.map(msg => (
-                                <React.Fragment key={msg.MessageID}>
-                                    {msg.MessageID === firstUnreadId && (
-                                        <div className="flex items-center my-6">
-                                            <div className="flex-grow h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div>
-                                            <div className="relative px-4 py-1 bg-cyan-400/10 backdrop-blur-sm rounded-full border border-cyan-400/30">
-                                                <span className="text-xs text-cyan-400 font-bold tracking-wider">MENSAJES NUEVOS</span>
-                                                <div className="absolute inset-0 bg-cyan-400/5 rounded-full animate-pulse"></div>
-                                            </div>
-                                            <div className="flex-grow h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div>
+                            {/* Estado de conexión mejorado */}
+                            {currentOnlineUsers.length > 0 && (
+                                <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-sm border border-cyan-400/40 rounded-xl shadow-lg hover:shadow-cyan-400/20 transition-all duration-300">
+                                        <div className="relative">
+                                            <Users className="w-4 h-4 text-cyan-400" />
+                                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
                                         </div>
-                                    )}
-                                    
-                                    <div className={`flex ${msg.SenderID === user.UserID ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`group relative max-w-md`}>
-                                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/0 via-cyan-500/10 to-purple-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></div>
-                                            <div className={`relative p-4 rounded-2xl backdrop-blur-sm transition-all duration-300 group-hover:scale-[1.02] ${
-                                                msg.SenderID === user.UserID 
-                                                    ? 'bg-gradient-to-br from-cyan-600/30 via-cyan-500/20 to-blue-600/30 border border-cyan-400/40 shadow-lg shadow-cyan-500/10' 
-                                                    : 'bg-gradient-to-br from-gray-700/40 via-gray-600/30 to-gray-700/40 border border-gray-500/30 shadow-lg shadow-gray-500/10'
-                                            }`}>
-                                                <div className="flex items-center space-x-2 mb-2">
-                                                    <div className={`w-2 h-2 rounded-full ${msg.SenderID === user.UserID ? 'bg-cyan-400' : 'bg-purple-400'} animate-pulse`}></div>
-                                                    <p className={`font-bold text-sm ${msg.SenderID === user.UserID ? 'text-cyan-300' : 'text-purple-300'}`}>
-                                                        {msg.SenderFullName}
-                                                    </p>
-                                                </div>
-                                                
-                                                {msg.FileURL && (
-                                                    <div className="my-2">
-                                                        {msg.FileType.startsWith('image/') ? (
-                                                            <img 
-                                                                src={msg.FileURL} 
-                                                                alt={msg.FileName} 
-                                                                className="rounded-lg max-w-xs max-h-64 object-cover cursor-pointer" 
-                                                                onClick={() => handleImageClick(msg.FileURL)}
-                                                            />
-                                                        ) : (
-                                                            <a href={msg.FileURL} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 p-2 bg-gray-700/50 rounded-lg hover:bg-gray-600/50">
-                                                                <FileIcon className="w-6 h-6 text-cyan-400" />
-                                                                <span className="text-sm text-gray-300 truncate">{msg.FileName}</span>
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                )}
+                                        <span className="text-sm text-cyan-400 font-semibold">
+                                            {currentOnlineUsers.length}
+                                        </span>
+                                    </div>
+                            )}
+                        </div>
+                    </div>
 
-                                                {msg.MessageText && <p className="text-white leading-relaxed">{msg.MessageText}</p>}
-                                                
-                                                <div className="flex items-center justify-end space-x-2 mt-2">
-                                                    <p className="text-xs text-gray-400 font-mono">
-                                                        {(() => {
+                    {/* Contenedor de mensajes */}
+                    <div 
+                        ref={chatContainerRef} 
+                        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-gray-800/50 scrollbar-thumb-cyan-500/30"
+                        style={{ overflowAnchor: 'none' }}
+                    >
+                        <div className="px-4 py-4 space-y-4">
+                            {groupedMessages.map((group, groupIndex) => {
+                                const showDate = groupIndex === 0 || 
+                                    groupedMessages[groupIndex - 1].date !== group.date;
+                                
+                                return (
+                                    <div key={`group-${groupIndex}`}>
+                                        {/* Separador de fecha */}
+                                        {showDate && (
+                                            <div className="flex justify-center my-4">
+                                                <div className="px-3 py-1 bg-gray-800/60 backdrop-blur-sm rounded-full">
+                                                    <span className="text-xs text-gray-400 font-medium">
+                                                        {formatDate(group.messages[0].SentAt)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Indicador de mensajes nuevos */}
+                                        {group.messages.some(msg => msg.MessageID === firstUnreadId) && (
+                                            <div className="flex items-center my-4">
+                                                <div className="flex-grow h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div>
+                                                <div className="px-3 py-1 bg-cyan-400/10 backdrop-blur-sm rounded-full border border-cyan-400/30">
+                                                    <span className="text-xs text-cyan-400 font-bold tracking-wider">MENSAJES NUEVOS</span>
+                                                </div>
+                                                <div className="flex-grow h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div>
+                                            </div>
+                                        )}
+
+                                        {/* Grupo de mensajes */}
+                                        <div className={`flex ${group.isOwn ? 'justify-end' : 'justify-start'} mb-1`}>
+                                            <div className={`max-w-[70%] space-y-1`}>
+                                                {group.messages.map((msg, msgIndex) => (
+                                                    <div key={msg.MessageID} className={`flex ${group.isOwn ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`group relative ${group.isOwn ? 'ml-12' : 'mr-12'}`}>
+                                                            <div className={`relative px-4 py-2 backdrop-blur-sm transition-all duration-200 hover:scale-[1.02] ${
+                                                                group.isOwn 
+                                                                    ? 'bg-gradient-to-br from-cyan-600/30 via-cyan-500/20 to-blue-600/30 border border-cyan-400/30 rounded-2xl rounded-br-md' 
+                                                                    : 'bg-gradient-to-br from-purple-800/30 via-violet-700/20 to-indigo-800/30 border border-purple-400/30 rounded-2xl rounded-bl-md'
+                                                            } ${msgIndex === 0 ? (group.isOwn ? 'rounded-tr-2xl' : 'rounded-tl-2xl') : ''} 
+                                                               ${msgIndex === group.messages.length - 1 ? (group.isOwn ? 'rounded-br-2xl' : 'rounded-bl-2xl') : ''}`}>
+                                                                
+                                                                {/* Archivo adjunto */}
+                                                                {msg.FileURL && (
+                                                                    <div className="mb-2">
+                                                                        {msg.FileType.startsWith('image/') ? (
+                                                                            <img 
+                                                                                src={getFullFileUrl(msg.FileURL)} 
+                                                                                alt={msg.FileName} 
+                                                                                className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer" 
+                                                                                onClick={() => handleImageClick(getFullFileUrl(msg.FileURL))}
+                                                                            />
+                                                                        ) : (
+                                                                            <a href={getFullFileUrl(msg.FileURL)} target="_blank" rel="noopener noreferrer" 
+                                                                               className="flex items-center space-x-2 p-2 bg-gray-700/50 rounded-lg hover:bg-gray-600/50 transition-colors">
+                                                                                <FileIcon className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                                                                                <span className="text-sm text-gray-300 truncate">{msg.FileName}</span>
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Texto del mensaje */}
+                                                                {msg.MessageText && (
+                                                                    <p className="text-white text-sm leading-relaxed break-words">
+                                                                        {msg.MessageText}
+                                                                    </p>
+                                                                )}
+                                                                
+                                                                {/* Hora y estado (solo en el último mensaje del grupo) */}
+                                                                {msgIndex === group.messages.length - 1 && (
+                                                                    <div className="flex items-center justify-end space-x-1 mt-1">
+                                                                        <span className="text-xs text-gray-400">
+                                                                            {(() => {
                                                             const timeMatch = msg.SentAt.match(/T(\d{2}):(\d{2})/);
                                                             if (timeMatch) {
                                                                 return `${timeMatch[1]}:${timeMatch[2]}`;
                                                             }
                                                             return 'Hora no disponible';
                                                         })()}
-                                                    </p>
-                                                    {msg.SenderID === user.UserID && (
-                                                        <div className="flex items-center">
-                                                            {msg.IsRead ? (
-                                                                <CheckCheck className="w-4 h-4 text-cyan-400 animate-pulse" /> 
-                                                            ) : (
-                                                                <Check className="w-4 h-4 text-gray-500" />
-                                                            )}
+                                                                        </span>
+                                                                        {group.isOwn && (
+                                                                            <div className="flex items-center">
+                                                                                {msg.IsRead ? (
+                                                                                    <CheckCheck className="w-3.5 h-3.5 text-cyan-400" /> 
+                                                                                ) : (
+                                                                                    <Check className="w-3.5 h-3.5 text-gray-400" />
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Indicador de escribiendo al final */}
+                            {typingUser && (
+                                <div className="flex justify-start">
+                                    <div className="max-w-[70%]">
+                                        <div className="group relative mr-12">
+                                            <div className="relative px-4 py-3 rounded-2xl rounded-bl-md bg-gradient-to-br from-purple-600/30 via-fuchsia-500/20 to-purple-700/30 border border-purple-400/30">
+                                                <div className="flex items-center space-x-1">
+                                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
+                                                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </React.Fragment>
-                            ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="relative px-6 py-4 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 border-t border-cyan-400/20 flex-shrink-0">
+                    {/* Barra de entrada de mensaje */}
+                    <div className="relative px-4 py-3 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 border-t border-cyan-400/20 flex-shrink-0">
                         {attachedFile && (
-                            <div className="mb-3 p-2 bg-gray-800/50 rounded-lg flex items-center justify-between">
+                            <div className="mb-2 p-2 bg-gray-800/50 rounded-lg flex items-center justify-between">
                                 <div className="flex items-center space-x-2 overflow-hidden">
                                     {attachedFile.type.startsWith('image/') ? (
                                         <img src={URL.createObjectURL(attachedFile)} alt="preview" className="w-10 h-10 rounded object-cover" />
@@ -443,24 +473,27 @@ const TicketChat = ({
                                     )}
                                     <span className="text-sm text-gray-300 truncate">{attachedFile.name}</span>
                                 </div>
-                                <button onClick={() => setAttachedFile(null)} className="p-1 text-gray-400 hover:text-white">
-                                    <X className="w-5 h-5" />
+                                <button 
+                                    onClick={() => setAttachedFile(null)} 
+                                    className="p-1 text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
                                 </button>
                             </div>
                         )}
                         
-                        <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
+                        <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                            
                             <button 
                                 type="button" 
                                 onClick={() => fileInputRef.current.click()}
-                                className="group relative p-3 bg-gray-700/50 text-gray-300 rounded-xl hover:text-white transition-all duration-300 flex-shrink-0"
+                                className="p-2.5 text-gray-400 hover:text-cyan-400 transition-colors"
                             >
-                                <Paperclip className="w-6 h-6" />
+                                <Paperclip className="w-5 h-5" />
                             </button>
 
                             <div className="relative flex-1">
-                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 rounded-xl blur-sm"></div>
                                 <input
                                     type="text"
                                     value={newMessage}
@@ -468,18 +501,21 @@ const TicketChat = ({
                                         setNewMessage(e.target.value);
                                         handleTyping();
                                     }}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(e)}
-                                    placeholder="Escribe tu mensaje..."
-                                    className="relative w-full px-4 py-3 bg-gray-800/70 backdrop-blur-sm border border-cyan-400/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400/60 focus:bg-gray-800/90 transition-all duration-300 font-medium"
+                                    placeholder="Escribe un mensaje..."
+                                    className="w-full px-4 py-2.5 bg-gray-800/70 backdrop-blur-sm border border-cyan-400/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400/40 focus:bg-gray-800/90 transition-all duration-200 text-sm"
                                 />
-                                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-400/0 via-cyan-400/5 to-purple-400/0 opacity-0 focus-within:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                             </div>
                             
                             <button 
                                 type="submit" 
-                                className="group relative p-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-cyan-500/25 transition-all duration-300 transform hover:scale-105 flex-shrink-0"
+                                disabled={!newMessage.trim() && !attachedFile}
+                                className={`p-2.5 rounded-full transition-all duration-200 ${
+                                    newMessage.trim() || attachedFile
+                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25 transform hover:scale-105' 
+                                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                                }`}
                             >
-                                <SendHorizontal className="w-6 h-6" />
+                                <SendHorizontal className="w-5 h-5" />
                             </button>
                         </form>
                     </div>

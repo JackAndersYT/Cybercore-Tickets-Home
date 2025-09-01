@@ -513,7 +513,7 @@ const DashboardPage = () => {
                     <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-br from-slate-800/20 to-slate-900/20 rounded-2xl"></div>
                         <div className="relative p-6 rounded-2xl border border-slate-600/20">
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-3 gap-6">
                                 {tickets.slice(0, 6).map((ticket, index) => (
                                     <div 
                                         key={ticket.TicketID} 
