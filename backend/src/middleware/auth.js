@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const { pool } = require('../config/db');
 require('dotenv').config();
 
-module.exports = function(req, res, next) {
+module.exports = async function(req, res, next) {
     // Obtener el token del header
     const token = req.header('x-auth-token');
 
@@ -13,6 +14,17 @@ module.exports = function(req, res, next) {
     // Validar el token
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Consulta a PostgreSQL
+        const userResult = await pool.query(
+            'SELECT UserID FROM Users WHERE UserID = $1',
+            [decoded.user.id]
+        );
+
+        if (userResult.rowCount === 0) {
+            return res.status(401).json({ msg: 'Token no es válido (usuario no existe)' });
+        }
+
         req.user = decoded.user;
         next();
     } catch (error) {

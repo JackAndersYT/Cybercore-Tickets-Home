@@ -1,36 +1,39 @@
-const { getConnection, sql } = require('../config/db');
+const { getConnection } = require('../config/db');
 
 exports.getDashboardStats = async (req, res) => {
     const { id: userId, area: userArea } = req.user;
 
     try {
-        const pool = await getConnection();
-        const request = pool.request();
-        request.input('userId', sql.Int, userId);
-        request.input('userArea', sql.NVarChar, userArea);
+        const pool = await getConnection(); // <-- aquí usamos getConnection
 
-        // Ejecutar todas las consultas de estadísticas en paralelo
         const [totalVsOpenResult, ticketFlowResult] = await Promise.all([
-            // Consulta para el estado general (total vs abiertos)
-            request.query(`
+            pool.query(`
                 SELECT 
-                    (SELECT COUNT(*) FROM Tickets WHERE AssignedToArea = @userArea OR CreatedByUserID = @userId) as total, 
-                    (SELECT COUNT(*) FROM Tickets WHERE (AssignedToArea = @userArea OR CreatedByUserID = @userId) AND Status IN ('Abierto', 'En Revisión')) as openTickets
-            `),
-            // Consulta para tickets realizados vs recibidos
-            request.query(`
+                    COUNT(*) AS total, 
+                    COUNT(CASE WHEN "Status" IN ('Abierto', 'En Revisión') THEN 1 END) AS "openTickets"
+                FROM "Tickets"
+                WHERE ("AssignedToArea" = $1 OR "CreatedByUserID" = $2) AND "Status" != 'Cancelado'
+            `, [userArea, userId]),
+
+            pool.query(`
                 SELECT
-                    (SELECT COUNT(*) FROM Tickets WHERE CreatedByUserID = @userId) as realizados,
-                    (SELECT COUNT(*) FROM Tickets WHERE AssignedToArea = @userArea) as recibidos
-            `)
+                    (SELECT COUNT(*) FROM "Tickets" WHERE "CreatedByUserID" = $1) AS realizados,
+                    (SELECT COUNT(*) FROM "Tickets" WHERE "AssignedToArea" = $2) AS recibidos
+            `, [userId, userArea])
         ]);
 
-        const totalVsOpenData = totalVsOpenResult.recordset[0] || { total: 0, openTickets: 0 };
-        const ticketFlowData = ticketFlowResult.recordset[0] || { realizados: 0, recibidos: 0 };
+        const totalVsOpenData = totalVsOpenResult.rows[0] || { total: 0, openTickets: 0 };
+        const ticketFlowData = ticketFlowResult.rows[0] || { realizados: 0, recibidos: 0 };
 
         res.json({
-            totalVsOpen: totalVsOpenData,
-            ticketFlow: ticketFlowData // Se envía el nuevo dato
+            totalVsOpen: {
+                total: parseInt(totalVsOpenData.total, 10),
+                openTickets: parseInt(totalVsOpenData.openTickets, 10)
+            },
+            ticketFlow: {
+                realizados: parseInt(ticketFlowData.realizados, 10),
+                recibidos: parseInt(ticketFlowData.recibidos, 10)
+            }
         });
 
     } catch (error) {
