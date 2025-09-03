@@ -29,15 +29,14 @@ exports.createTicket = async (req, res) => {
 
 // Obtener tickets con filtros y paginación
 exports.getTickets = async (req, res) => {
-    const userid = parseInt(req.user.id, 10);
-    const userarea = req.user.area;
+    const { id: userId, area: userArea } = req.user;
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
-    const searchterm = req.query.searchterm || '';
+    const searchTerm = req.query.searchterm || '';
     const status = req.query.status || 'Todos';
-    const datefrom = req.query.datefrom;
-    const dateto = req.query.dateto;
+    const dateFrom = req.query.datefrom;
+    const dateTo = req.query.dateto;
 
     try {
         const pool = await getConnection();
@@ -53,61 +52,69 @@ exports.getTickets = async (req, res) => {
         let params = [];
         let paramIndex = 1;
 
-        if (userarea === 'Personal Operativo') {
+        // Filtro por área/usuario
+        if (userArea === 'Personal Operativo') {
             conditions.push(`createdbyuserid = $${paramIndex++}`);
-            params.push(userid);
+            params.push(userId); // integer
         } else {
             conditions.push(`(assignedtoarea = $${paramIndex} OR createdbyuserid = $${paramIndex + 1})`);
-            params.push(userarea, userid);
+            params.push(userArea, userId); // string, integer
             paramIndex += 2;
         }
 
-        if (searchterm) {
+        // Filtro por searchTerm
+        if (searchTerm) {
             conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-            params.push(`%${searchterm}%`);
+            params.push(`%${searchTerm}%`);
             paramIndex++;
         }
 
+        // Filtro por status
         if (status && status !== 'Todos') {
-            conditions.push(`status = $${paramIndex++}`);
+            conditions.push(`status = $${paramIndex}`);
             params.push(status);
+            paramIndex++;
         }
 
-        if (datefrom) {
-            conditions.push(`createdat >= $${paramIndex++}`);
-            params.push(datefrom);
+        // Filtro por fechas
+        if (dateFrom) {
+            conditions.push(`createdat >= $${paramIndex}`);
+            params.push(dateFrom);
+            paramIndex++;
         }
-
-        if (dateto) {
-            conditions.push(`createdat <= $${paramIndex++}`);
-            params.push(dateto);
+        if (dateTo) {
+            conditions.push(`createdat < $${paramIndex}`);
+            params.push(dateTo);
+            paramIndex++;
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        // Construir parámetros finales
-        const queryParams = [userid, ...params];
-
-        const ticketsResult = await pool.query(`
-            SELECT t.ticketid, t.title, t.status, t.createdat, t.description,
-                   u.fullname as createdby,
-                   (SELECT COUNT(*) 
-                    FROM "TicketMessages" tm 
-                    WHERE tm.ticketid = t.ticketid 
-                      AND tm.isread = false 
-                      AND tm.senderid != $1) as unreadcount
+        // Consulta principal de tickets
+        const ticketsQuery = `
+            SELECT 
+                t.ticketid, t.title, t.status, t.createdat, t.description,
+                u.fullname AS createdby,
+                (
+                    SELECT COUNT(*) 
+                    FROM "TicketMessages" tm
+                    WHERE tm.ticketid = t.ticketid
+                      AND tm.isread = false
+                      AND tm.senderid != $1
+                ) AS unreadcount
             FROM "Tickets" t
             JOIN "Users" u ON t.createdbyuserid = u.userid
             ${whereClause}
             ORDER BY t.createdat DESC
-            OFFSET $${queryParams.length + 1} LIMIT $${queryParams.length + 2}
-        `, [...queryParams, offset, limit]);
+            OFFSET $${paramIndex} LIMIT $${paramIndex + 1}
+        `;
 
-        const countResult = await pool.query(`
-            SELECT COUNT(*) as totaltickets 
-            FROM "Tickets" t 
-            ${whereClause}
-        `, params);
+        params.push(userId, limit); // última posición: offset y limit
+        const ticketsResult = await pool.query(ticketsQuery, [...params.slice(0, paramIndex - 1), offset, limit]);
+
+        // Conteo total para paginación
+        const countQuery = `SELECT COUNT(*) AS totaltickets FROM "Tickets" t ${whereClause}`;
+        const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
 
         const totalTickets = parseInt(countResult.rows[0].totaltickets, 10);
         const totalPages = Math.ceil(totalTickets / limit);
@@ -117,8 +124,9 @@ exports.getTickets = async (req, res) => {
             totalPages,
             currentPage: page
         });
+
     } catch (error) {
-        console.error(error);
+        console.error('Error en getTickets:', error);
         res.status(500).send('Error en el servidor al obtener los tickets.');
     }
 };
