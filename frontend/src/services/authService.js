@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config'; // Importa la URL base
 
-const API_URL = 'http://192.168.18.7:4000/api/users';
+const API_URL = `${API_BASE_URL}/api/users`; // Ahora apunta a Render
 
 const login = async (username, password) => {
     const response = await axios.post(`${API_URL}/login`, {
