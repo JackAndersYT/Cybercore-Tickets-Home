@@ -19,7 +19,7 @@ module.exports = async function (req, res, next) {
 
         // Consultar si el usuario existe
         const userResult = await pool.query(
-            'SELECT "UserID", "Role", "Area" FROM "Users" WHERE "UserID" = $1',
+            'SELECT "userid", "role", "area" FROM "Users" WHERE "userid" = $1',
             [userId]
         );
 
