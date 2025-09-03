@@ -4,21 +4,21 @@ exports.getDashboardStats = async (req, res) => {
     const { id: userId, area: userArea } = req.user;
 
     try {
-        const pool = await getConnection(); // <-- aquí usamos getConnection
+        const pool = await getConnection();
 
         const [totalVsOpenResult, ticketFlowResult] = await Promise.all([
             pool.query(`
                 SELECT 
                     COUNT(*) AS total, 
-                    COUNT(CASE WHEN "Status" IN ('Abierto', 'En Revisión') THEN 1 END) AS "openTickets"
+                    COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
                 FROM "Tickets"
-                WHERE ("AssignedToArea" = $1 OR "CreatedByUserID" = $2) AND "Status" != 'Cancelado'
+                WHERE (assignedtoarea = $1 OR createdbyuserid = $2) AND status != 'Cancelado'
             `, [userArea, userId]),
 
             pool.query(`
                 SELECT
-                    (SELECT COUNT(*) FROM "Tickets" WHERE "CreatedByUserID" = $1) AS realizados,
-                    (SELECT COUNT(*) FROM "Tickets" WHERE "AssignedToArea" = $2) AS recibidos
+                    (SELECT COUNT(*) FROM "Tickets" WHERE createdbyuserid = $1) AS realizados,
+                    (SELECT COUNT(*) FROM "Tickets" WHERE assignedtoarea = $2) AS recibidos
             `, [userId, userArea])
         ]);
 

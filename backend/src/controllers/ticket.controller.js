@@ -4,19 +4,19 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 exports.createTicket = async (req, res) => {
-    const { title, description, assignedToArea } = req.body;
-    const createdByUserId = req.user.id;
+    const { title, description, assignedtoarea } = req.body;
+    const createdbyuserid = req.user.id;
 
-    if (!title || !description || !assignedToArea) {
+    if (!title || !description || !assignedtoarea) {
         return res.status(400).json({ msg: 'Por favor, complete todos los campos requeridos.' });
     }
 
     try {
         const pool = await getConnection();
         await pool.query(
-            `INSERT INTO "Tickets" ("Title", "Description", "CreatedByUserID", "AssignedToArea") 
+            `INSERT INTO "Tickets" (title, description, createdbyuserid, assignedtoarea) 
              VALUES ($1, $2, $3, $4)`,
-            [title, description, createdByUserId, assignedToArea]
+            [title, description, createdbyuserid, assignedtoarea]
         );
 
         res.status(201).json({ msg: 'Ticket creado exitosamente.' });
@@ -27,14 +27,14 @@ exports.createTicket = async (req, res) => {
 };
 
 exports.getTickets = async (req, res) => {
-    const { id: userId, area: userArea } = req.user;
+    const { id: userid, area: userarea } = req.user;
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
-    const searchTerm = req.query.searchTerm || '';
+    const searchterm = req.query.searchterm || '';
     const status = req.query.status || 'Todos';
-    const dateFrom = req.query.dateFrom;
-    const dateTo = req.query.dateTo;
+    const datefrom = req.query.datefrom;
+    const dateto = req.query.dateto;
 
     try {
         const pool = await getConnection();
@@ -42,62 +42,66 @@ exports.getTickets = async (req, res) => {
         // Actualizar tickets resueltos a cerrados
         await pool.query(`
             UPDATE "Tickets"
-            SET "Status" = 'Cerrado', "UpdatedAt" = NOW()
-            WHERE "Status" = 'Resuelto' AND "ResolvedAt" < NOW() - INTERVAL '1 day'
+            SET status = 'Cerrado', updatedat = NOW()
+            WHERE status = 'Resuelto' AND resolvedat < NOW() - INTERVAL '1 day'
         `);
 
         let conditions = [];
         let params = [];
         let paramIndex = 1;
 
-        if (userArea === 'Personal Operativo') {
-            conditions.push(`"CreatedByUserID" = $${paramIndex++}`);
-            params.push(userId);
+        if (userarea === 'Personal Operativo') {
+            conditions.push(`createdbyuserid = $${paramIndex++}`);
+            params.push(userid);
         } else {
-            conditions.push(`("AssignedToArea" = $${paramIndex} OR "CreatedByUserID" = $${paramIndex + 1})`);
-            params.push(userArea, userId);
+            conditions.push(`(assignedtoarea = $${paramIndex} OR createdbyuserid = $${paramIndex + 1})`);
+            params.push(userarea, userid);
             paramIndex += 2;
         }
 
-        if (searchTerm) {
-            conditions.push(`("Title" ILIKE $${paramIndex} OR "Description" ILIKE $${paramIndex})`);
-            params.push(`%${searchTerm}%`);
+        if (searchterm) {
+            conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+            params.push(`%${searchterm}%`);
             paramIndex++;
         }
 
         if (status && status !== 'Todos') {
-            conditions.push(`"Status" = $${paramIndex++}`);
+            conditions.push(`status = $${paramIndex++}`);
             params.push(status);
         }
 
-        if (dateFrom) {
-            conditions.push(`"CreatedAt" >= $${paramIndex++}`);
-            params.push(dateFrom);
+        if (datefrom) {
+            conditions.push(`createdat >= $${paramIndex++}`);
+            params.push(datefrom);
         }
 
-        if (dateTo) {
-            conditions.push(`"CreatedAt" < $${paramIndex++}`);
-            params.push(dateTo);
+        if (dateto) {
+            conditions.push(`createdat < $${paramIndex++}`);
+            params.push(dateto);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
         const [ticketsResult, countResult] = await Promise.all([
             pool.query(`
-                SELECT t."TicketID", t."Title", t."Status", t."CreatedAt", t."Description",
-                       u."FullName" as "CreatedBy",
-                       (SELECT COUNT(*) FROM "TicketMessages" tm WHERE tm."TicketID" = t."TicketID" AND tm."IsRead" = false AND tm."SenderID" != $1) as "unreadCount"
+                SELECT t.ticketid, t.title, t.status, t.createdat, t.description,
+                       u.fullname as createdby,
+                       (SELECT COUNT(*) 
+                        FROM "TicketMessages" tm 
+                        WHERE tm.ticketid = t.ticketid 
+                          AND tm.isread = false 
+                          AND tm.senderid != $1) as unreadcount
                 FROM "Tickets" t
-                JOIN "Users" u ON t."CreatedByUserID" = u."UserID"
+                JOIN "Users" u ON t.createdbyuserid = u.userid
                 ${whereClause}
-                ORDER BY t."CreatedAt" DESC
+                ORDER BY t.createdat DESC
                 OFFSET ${offset} LIMIT ${limit}
-            `, [userId, ...params.slice(1)]),
+            `, [userid, ...params.slice(1)]),
 
-            pool.query(`SELECT COUNT(*) as "totalTickets" FROM "Tickets" t ${whereClause}`, params)
+            pool.query(`SELECT COUNT(*) as totaltickets FROM "Tickets" t ${whereClause}`, params)
         ]);
 
-        const totalTickets = parseInt(countResult.rows[0].totalTickets, 10);
+        const totalTickets = parseInt(countResult.rows[0].totaltickets, 10);
         const totalPages = Math.ceil(totalTickets / limit);
 
         res.json({
@@ -113,27 +117,31 @@ exports.getTickets = async (req, res) => {
 };
 
 exports.getTicketById = async (req, res) => {
-    const { id: ticketId } = req.params;
-    const { id: userId, area: userArea } = req.user;
+    const { id: ticketid } = req.params;
+    const { id: userid, area: userarea } = req.user;
 
     try {
         const pool = await getConnection();
         const result = await pool.query(`
-            SELECT t.*, u."FullName" as "CreatedByFullName",
-                   (SELECT COUNT(*) FROM "TicketMessages" tm WHERE tm."TicketID" = t."TicketID" AND tm."IsRead" = false AND tm."SenderID" != $1) as "unreadCount"
+            SELECT t.*, u.fullname as createdbyfullname,
+                   (SELECT COUNT(*) 
+                    FROM "TicketMessages" tm 
+                    WHERE tm.ticketid = t.ticketid 
+                      AND tm.isread = false 
+                      AND tm.senderid != $1) as unreadcount
             FROM "Tickets" t
-            JOIN "Users" u ON t."CreatedByUserID" = u."UserID"
-            WHERE t."TicketID" = $2
-        `, [userId, ticketId]);
+            JOIN "Users" u ON t.createdbyuserid = u.userid
+            WHERE t.ticketid = $2
+        `, [userid, ticketid]);
 
         if (result.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
 
         const ticket = result.rows[0];
 
-        if (userArea === 'Personal Operativo') {
-            if (ticket.CreatedByUserID !== userId) return res.status(403).json({ msg: 'Acceso denegado.' });
+        if (userarea === 'Personal Operativo') {
+            if (ticket.createdbyuserid !== userid) return res.status(403).json({ msg: 'Acceso denegado.' });
         } else {
-            if (ticket.AssignedToArea !== userArea && ticket.CreatedByUserID !== userId) {
+            if (ticket.assignedtoarea !== userarea && ticket.createdbyuserid !== userid) {
                 return res.status(403).json({ msg: 'No tienes permiso para ver este ticket.' });
             }
         }
@@ -146,31 +154,31 @@ exports.getTicketById = async (req, res) => {
 };
 
 exports.updateTicketStatus = async (req, res) => {
-    const { id: ticketId } = req.params;
+    const { id: ticketid } = req.params;
     const { status } = req.body;
-    const { area: userArea } = req.user;
+    const { area: userarea } = req.user;
 
-    if (!['Soporte', 'Contabilidad'].includes(userArea)) {
+    if (!['Soporte', 'Contabilidad'].includes(userarea)) {
         return res.status(403).json({ msg: 'No tienes permiso para cambiar el estado.' });
     }
 
     try {
         const pool = await getConnection();
-        const ticketResult = await pool.query(`SELECT "AssignedToArea" FROM "Tickets" WHERE "TicketID" = $1`, [ticketId]);
+        const ticketResult = await pool.query(`SELECT assignedtoarea FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
 
         if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
 
         const ticket = ticketResult.rows[0];
-        if (ticket.AssignedToArea !== userArea) return res.status(403).json({ msg: 'No puedes cambiar el estado de un ticket que no está asignado a tu área.' });
+        if (ticket.assignedtoarea !== userarea) return res.status(403).json({ msg: 'No puedes cambiar el estado de un ticket que no está asignado a tu área.' });
 
-        let query = `UPDATE "Tickets" SET "Status" = $1, "UpdatedAt" = NOW()`;
+        let query = `UPDATE "Tickets" SET status = $1, updatedat = NOW()`;
         const params = [status];
 
         if (status === 'Resuelto') {
-            query += `, "ResolvedAt" = NOW()`;
+            query += `, resolvedat = NOW()`;
         }
-        query += ` WHERE "TicketID" = $2`;
-        params.push(ticketId);
+        query += ` WHERE ticketid = $2`;
+        params.push(ticketid);
 
         await pool.query(query, params);
 
@@ -182,17 +190,17 @@ exports.updateTicketStatus = async (req, res) => {
 };
 
 exports.getTicketMessages = async (req, res) => {
-    const { id: ticketId } = req.params;
+    const { id: ticketid } = req.params;
 
     try {
         const pool = await getConnection();
         const result = await pool.query(`
-            SELECT m.*, u."FullName" as "SenderFullName"
+            SELECT m.*, u.fullname as senderfullname
             FROM "TicketMessages" m
-            JOIN "Users" u ON m."SenderID" = u."UserID"
-            WHERE m."TicketID" = $1
-            ORDER BY m."SentAt" ASC
-        `, [ticketId]);
+            JOIN "Users" u ON m.senderid = u.userid
+            WHERE m.ticketid = $1
+            ORDER BY m.sentat ASC
+        `, [ticketid]);
 
         res.json(result.rows);
     } catch (error) {
@@ -202,45 +210,45 @@ exports.getTicketMessages = async (req, res) => {
 };
 
 exports.addTicketMessage = async (req, res) => {
-    const { id: ticketId } = req.params;
-    const messageText = req.body.messageText || '';
+    const { id: ticketid } = req.params;
+    const messagetext = req.body.messagetext || '';
     const file = req.file;
-    const senderId = req.user.id;
+    const senderid = req.user.id;
 
-    if (!messageText && !file) return res.status(400).json({ msg: 'El mensaje no puede estar vacío.' });
+    if (!messagetext && !file) return res.status(400).json({ msg: 'El mensaje no puede estar vacío.' });
 
     try {
         const pool = await getConnection();
 
-        const fileName = file ? file.originalname : null;
-        const fileUrl = file ? `/uploads/${file.filename}` : null;
-        const fileType = file ? file.mimetype : null;
+        const filename = file ? file.originalname : null;
+        const fileurl = file ? `/uploads/${file.filename}` : null;
+        const filetype = file ? file.mimetype : null;
 
         const insertResult = await pool.query(`
-            INSERT INTO "TicketMessages" ("TicketID", "SenderID", "MessageText", "FileName", "FileURL", "FileType")
+            INSERT INTO "TicketMessages" (ticketid, senderid, messagetext, filename, fileurl, filetype)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
-        `, [ticketId, senderId, messageText || null, fileName, fileUrl, fileType]);
+        `, [ticketid, senderid, messagetext || null, filename, fileurl, filetype]);
 
         const newMessage = insertResult.rows[0];
 
-        const userResult = await pool.query(`SELECT "FullName" FROM "Users" WHERE "UserID" = $1`, [senderId]);
+        const userResult = await pool.query(`SELECT fullname FROM "Users" WHERE userid = $1`, [senderid]);
 
         const fullMessage = {
             ...newMessage,
-            SenderFullName: userResult.rows[0].FullName
+            senderfullname: userResult.rows[0].fullname
         };
 
-        req.io.to(ticketId).emit('newMessage', fullMessage);
+        req.io.to(ticketid).emit('newMessage', fullMessage);
 
-        const ticketResult = await pool.query(`SELECT "Title", "CreatedByUserID" FROM "Tickets" WHERE "TicketID" = $1`, [ticketId]);
+        const ticketResult = await pool.query(`SELECT title, createdbyuserid FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
 
         req.io.emit('ticketUpdate', {
-            ticketId: parseInt(ticketId, 10),
-            title: ticketResult.rows[0].Title,
-            senderName: fullMessage.SenderFullName,
-            senderId,
-            recipientId: ticketResult.rows[0].CreatedByUserID
+            ticketId: parseInt(ticketid, 10),
+            title: ticketResult.rows[0].title,
+            senderName: fullMessage.senderfullname,
+            senderId: senderid,
+            recipientId: ticketResult.rows[0].createdbyuserid
         });
 
         res.status(201).json(newMessage);
@@ -251,18 +259,18 @@ exports.addTicketMessage = async (req, res) => {
 };
 
 exports.markMessagesAsRead = async (req, res) => {
-    const { id: ticketId } = req.params;
-    const { id: userId } = req.user;
+    const { id: ticketid } = req.params;
+    const { id: userid } = req.user;
 
     try {
         const pool = await getConnection();
         await pool.query(`
             UPDATE "TicketMessages"
-            SET "IsRead" = true
-            WHERE "TicketID" = $1 AND "SenderID" != $2 AND "IsRead" = false
-        `, [ticketId, userId]);
+            SET isread = true
+            WHERE ticketid = $1 AND senderid != $2 AND isread = false
+        `, [ticketid, userid]);
 
-        req.io.to(ticketId).emit('messagesRead', { readerId: userId });
+        req.io.to(ticketid).emit('messagesRead', { readerId: userid });
 
         res.status(200).json({ msg: 'Mensajes marcados como leídos.' });
     } catch (error) {
@@ -272,37 +280,37 @@ exports.markMessagesAsRead = async (req, res) => {
 };
 
 exports.updateTicket = async (req, res) => {
-    const { id: ticketId } = req.params;
+    const { id: ticketid } = req.params;
     const { title, description } = req.body;
-    const { id: userId, role: userRole } = req.user;
+    const { id: userid, role: userrole } = req.user;
 
     if (!title || !description) return res.status(400).json({ msg: 'El título y la descripción son requeridos.' });
 
     try {
         const pool = await getConnection();
         const ticketResult = await pool.query(`
-            SELECT "CreatedByUserID", "Status"
+            SELECT createdbyuserid, status
             FROM "Tickets"
-            WHERE "TicketID" = $1
-        `, [ticketId]);
+            WHERE ticketid = $1
+        `, [ticketid]);
 
         if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
 
         const ticket = ticketResult.rows[0];
 
-        if (ticket.CreatedByUserID !== userId && userRole !== 'Administrador') {
+        if (ticket.createdbyuserid !== userid && userrole !== 'Administrador') {
             return res.status(403).json({ msg: 'No tienes permiso para editar este ticket.' });
         }
 
-        if (ticket.Status !== 'Abierto') {
-            return res.status(403).json({ msg: `No se puede editar un ticket en estado "${ticket.Status}".` });
+        if (ticket.status !== 'Abierto') {
+            return res.status(403).json({ msg: `No se puede editar un ticket en estado "${ticket.status}".` });
         }
 
         await pool.query(`
             UPDATE "Tickets"
-            SET "Title" = $1, "Description" = $2, "UpdatedAt" = NOW()
-            WHERE "TicketID" = $3
-        `, [title, description, ticketId]);
+            SET title = $1, description = $2, updatedat = NOW()
+            WHERE ticketid = $3
+        `, [title, description, ticketid]);
 
         res.json({ msg: 'Ticket actualizado correctamente.' });
     } catch (error) {
@@ -312,31 +320,31 @@ exports.updateTicket = async (req, res) => {
 };
 
 exports.cancelTicket = async (req, res) => {
-    const { id: ticketId } = req.params;
-    const { id: userId, role: userRole } = req.user;
+    const { id: ticketid } = req.params;
+    const { id: userid, role: userrole } = req.user;
 
     try {
         const pool = await getConnection();
         const ticketResult = await pool.query(`
-            SELECT "Status", "CreatedByUserID"
+            SELECT status, createdbyuserid
             FROM "Tickets"
-            WHERE "TicketID" = $1
-        `, [ticketId]);
+            WHERE ticketid = $1
+        `, [ticketid]);
 
         if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
 
         const ticket = ticketResult.rows[0];
 
-        if (ticket.Status !== 'Abierto') return res.status(403).json({ msg: 'No se puede cancelar un ticket que ya está en proceso.' });
-        if (ticket.CreatedByUserID !== userId && userRole !== 'Administrador') {
+        if (ticket.status !== 'Abierto') return res.status(403).json({ msg: 'No se puede cancelar un ticket que ya está en proceso.' });
+        if (ticket.createdbyuserid !== userid && userrole !== 'Administrador') {
             return res.status(403).json({ msg: 'No tienes permiso para cancelar este ticket.' });
         }
 
         await pool.query(`
             UPDATE "Tickets"
-            SET "Status" = 'Cancelado', "UpdatedAt" = NOW()
-            WHERE "TicketID" = $1
-        `, [ticketId]);
+            SET status = 'Cancelado', updatedat = NOW()
+            WHERE ticketid = $1
+        `, [ticketid]);
 
         res.json({ msg: 'Ticket cancelado exitosamente.' });
     } catch (error) {

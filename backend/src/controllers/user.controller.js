@@ -4,26 +4,26 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 exports.registerUser = async (req, res) => {
-    const { fullName, username, password, role, area } = req.body;
+    const { fullname, username, password, role, area } = req.body;
 
-    if (!fullName || !username || !password || !role || !area) {
+    if (!fullname || !username || !password || !role || !area) {
         return res.status(400).json({ msg: "Por favor, complete todos los campos." });
     }
 
     try {
         const pool = await getConnection();
         const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordhash = await bcrypt.hash(password, salt);
 
         await pool.query(
-            `INSERT INTO "Users" ("FullName", "Username", "PasswordHash", "Role", "Area")
+            `INSERT INTO "Users" (fullname, username, passwordhash, role, area)
              VALUES ($1, $2, $3, $4, $5)`,
-            [fullName, username, passwordHash, role, area]
+            [fullname, username, passwordhash, role, area]
         );
 
         res.status(201).json({ msg: "Usuario registrado exitosamente." });
     } catch (error) {
-        if (error.code === '23505') { // UNIQUE violation
+        if (error.code === '23505') {
             return res.status(409).json({ msg: "El nombre de usuario ya existe." });
         }
         console.error(error);
@@ -37,21 +37,21 @@ exports.loginUser = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.query(
-            `SELECT * FROM "Users" WHERE "Username" = $1`,
+            `SELECT * FROM "Users" WHERE username = $1`,
             [username]
         );
 
         const user = result.rows[0];
         if (!user) return res.status(400).json({ msg: "Credenciales inválidas." });
 
-        const isMatch = await bcrypt.compare(password, user.PasswordHash);
+        const isMatch = await bcrypt.compare(password, user.passwordhash);
         if (!isMatch) return res.status(400).json({ msg: "Credenciales inválidas." });
 
         const payload = {
             user: {
-                id: user.UserID,
-                role: user.Role,
-                area: user.Area
+                id: user.userid,
+                role: user.role,
+                area: user.area
             }
         };
 
@@ -67,7 +67,7 @@ exports.getLoggedInUser = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.query(
-            `SELECT "UserID", "FullName", "Username", "Role", "Area" FROM "Users" WHERE "UserID" = $1`,
+            `SELECT userid, fullname, username, role, area FROM "Users" WHERE userid = $1`,
             [req.user.id]
         );
         res.json(result.rows[0]);
@@ -86,16 +86,16 @@ exports.getAllUsers = async (req, res) => {
         const pool = await getConnection();
         const [usersResult, countResult] = await Promise.all([
             pool.query(
-                `SELECT "UserID", "FullName", "Username", "Role", "Area"
+                `SELECT userid, fullname, username, role, area
                  FROM "Users"
-                 ORDER BY "UserID"
+                 ORDER BY userid
                  OFFSET $1 LIMIT $2`,
                 [offset, limit]
             ),
-            pool.query(`SELECT COUNT(*) as "totalUsers" FROM "Users"`)
+            pool.query(`SELECT COUNT(*) as totalusers FROM "Users"`)
         ]);
 
-        const totalUsers = parseInt(countResult.rows[0].totalUsers, 10);
+        const totalUsers = parseInt(countResult.rows[0].totalusers, 10);
         const totalPages = Math.ceil(totalUsers / limit);
 
         res.json({
@@ -110,16 +110,16 @@ exports.getAllUsers = async (req, res) => {
 };
 
 exports.updateUser = async (req, res) => {
-    const { id: userIdToUpdate } = req.params;
-    const { fullName, role, area } = req.body;
+    const { id: useridToUpdate } = req.params;
+    const { fullname, role, area } = req.body;
 
     try {
         const pool = await getConnection();
         await pool.query(
             `UPDATE "Users"
-             SET "FullName" = $1, "Role" = $2, "Area" = $3
-             WHERE "UserID" = $4`,
-            [fullName, role, area, userIdToUpdate]
+             SET fullname = $1, role = $2, area = $3
+             WHERE userid = $4`,
+            [fullname, role, area, useridToUpdate]
         );
         res.json({ msg: 'Usuario actualizado correctamente.' });
     } catch (error) {
@@ -129,28 +129,28 @@ exports.updateUser = async (req, res) => {
 };
 
 exports.deleteUser = async (req, res) => {
-    const { id: userIdToDelete } = req.params;
-    const { id: adminUserId, role: adminUserRole } = req.user;
+    const { id: useridToDelete } = req.params;
+    const { id: adminuserid, role: adminuserrole } = req.user;
 
-    if (adminUserRole !== 'Administrador') {
+    if (adminuserrole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });
     }
-    if (parseInt(userIdToDelete, 10) === adminUserId) {
+    if (parseInt(useridToDelete, 10) === adminuserid) {
         return res.status(400).json({ msg: 'No puedes eliminar tu propia cuenta.' });
     }
 
     try {
         const pool = await getConnection();
         const userToDeleteResult = await pool.query(
-            `SELECT "Role" FROM "Users" WHERE "UserID" = $1`,
-            [userIdToDelete]
+            `SELECT role FROM "Users" WHERE userid = $1`,
+            [useridToDelete]
         );
 
-        if (userToDeleteResult.rows[0]?.Role === 'Administrador') {
+        if (userToDeleteResult.rows[0]?.role === 'Administrador') {
             return res.status(403).json({ msg: 'No se puede eliminar a otro administrador.' });
         }
 
-        await pool.query(`DELETE FROM "Users" WHERE "UserID" = $1`, [userIdToDelete]);
+        await pool.query(`DELETE FROM "Users" WHERE userid = $1`, [useridToDelete]);
         res.json({ msg: 'Usuario eliminado.' });
     } catch (error) {
         console.error(error);
@@ -159,7 +159,7 @@ exports.deleteUser = async (req, res) => {
 };
 
 exports.updatePassword = async (req, res) => {
-    const { id: userIdToUpdate } = req.params;
+    const { id: useridToUpdate } = req.params;
     const { password } = req.body;
 
     if (!password) return res.status(400).json({ msg: 'La nueva contraseña es requerida.' });
@@ -167,11 +167,11 @@ exports.updatePassword = async (req, res) => {
     try {
         const pool = await getConnection();
         const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        const passwordhash = await bcrypt.hash(password, salt);
 
         await pool.query(
-            `UPDATE "Users" SET "PasswordHash" = $1 WHERE "UserID" = $2`,
-            [passwordHash, userIdToUpdate]
+            `UPDATE "Users" SET passwordhash = $1 WHERE userid = $2`,
+            [passwordhash, useridToUpdate]
         );
 
         res.json({ msg: 'Contraseña actualizada correctamente.' });
