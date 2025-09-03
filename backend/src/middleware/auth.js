@@ -17,7 +17,7 @@ module.exports = async function(req, res, next) {
 
         // Consulta a PostgreSQL
         const userResult = await pool.query(
-            'SELECT userid FROM Users WHERE userid = $1',
+            'SELECT userid FROM "Users" WHERE userid = $1',
             [decoded.user.id]
         );
 
