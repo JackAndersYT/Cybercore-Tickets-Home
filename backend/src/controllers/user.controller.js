@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// Registrar usuario
 exports.registerUser = async (req, res) => {
     const { fullname, username, password, role, area } = req.body;
 
@@ -31,6 +32,7 @@ exports.registerUser = async (req, res) => {
     }
 };
 
+// Login de usuario
 exports.loginUser = async (req, res) => {
     const { username, password } = req.body;
 
@@ -49,7 +51,7 @@ exports.loginUser = async (req, res) => {
 
         const payload = {
             user: {
-                id: user.userid,
+                id: parseInt(user.userid, 10),
                 role: user.role,
                 area: user.area
             }
@@ -63,12 +65,14 @@ exports.loginUser = async (req, res) => {
     }
 };
 
+// Obtener usuario logueado
 exports.getLoggedInUser = async (req, res) => {
+    const userid = parseInt(req.user.id, 10);
     try {
         const pool = await getConnection();
         const result = await pool.query(
             `SELECT userid, fullname, username, role, area FROM "Users" WHERE userid = $1`,
-            [req.user.id]
+            [userid]
         );
         res.json(result.rows[0]);
     } catch (error) {
@@ -77,6 +81,7 @@ exports.getLoggedInUser = async (req, res) => {
     }
 };
 
+// Obtener todos los usuarios (paginación)
 exports.getAllUsers = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 6;
@@ -109,8 +114,9 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
+// Actualizar usuario
 exports.updateUser = async (req, res) => {
-    const { id: useridToUpdate } = req.params;
+    const useridToUpdate = parseInt(req.params.id, 10);
     const { fullname, role, area } = req.body;
 
     try {
@@ -128,14 +134,16 @@ exports.updateUser = async (req, res) => {
     }
 };
 
+// Eliminar usuario
 exports.deleteUser = async (req, res) => {
-    const { id: useridToDelete } = req.params;
-    const { id: adminuserid, role: adminuserrole } = req.user;
+    const useridToDelete = parseInt(req.params.id, 10);
+    const adminuserid = parseInt(req.user.id, 10);
+    const adminuserrole = req.user.role;
 
     if (adminuserrole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });
     }
-    if (parseInt(useridToDelete, 10) === adminuserid) {
+    if (useridToDelete === adminuserid) {
         return res.status(400).json({ msg: 'No puedes eliminar tu propia cuenta.' });
     }
 
@@ -158,8 +166,9 @@ exports.deleteUser = async (req, res) => {
     }
 };
 
+// Actualizar contraseña
 exports.updatePassword = async (req, res) => {
-    const { id: useridToUpdate } = req.params;
+    const useridToUpdate = parseInt(req.params.id, 10);
     const { password } = req.body;
 
     if (!password) return res.status(400).json({ msg: 'La nueva contraseña es requerida.' });

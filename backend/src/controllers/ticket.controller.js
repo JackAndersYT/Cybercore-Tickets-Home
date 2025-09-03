@@ -3,9 +3,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// Crear un ticket
 exports.createTicket = async (req, res) => {
     const { title, description, assignedtoarea } = req.body;
-    const createdbyuserid = req.user.id;
+    const createdbyuserid = parseInt(req.user.id, 10);
 
     if (!title || !description || !assignedtoarea) {
         return res.status(400).json({ msg: 'Por favor, complete todos los campos requeridos.' });
@@ -26,8 +27,10 @@ exports.createTicket = async (req, res) => {
     }
 };
 
+// Obtener tickets con filtros y paginación
 exports.getTickets = async (req, res) => {
-    const { id: userid, area: userarea } = req.user;
+    const userid = parseInt(req.user.id, 10);
+    const userarea = req.user.area;
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
@@ -76,30 +79,35 @@ exports.getTickets = async (req, res) => {
         }
 
         if (dateto) {
-            conditions.push(`createdat < $${paramIndex++}`);
+            conditions.push(`createdat <= $${paramIndex++}`);
             params.push(dateto);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        const [ticketsResult, countResult] = await Promise.all([
-            pool.query(`
-                SELECT t.ticketid, t.title, t.status, t.createdat, t.description,
-                       u.fullname as createdby,
-                       (SELECT COUNT(*) 
-                        FROM "TicketMessages" tm 
-                        WHERE tm.ticketid = t.ticketid 
-                          AND tm.isread = false 
-                          AND tm.senderid != $1) as unreadcount
-                FROM "Tickets" t
-                JOIN "Users" u ON t.createdbyuserid = u.userid
-                ${whereClause}
-                ORDER BY t.createdat DESC
-                OFFSET ${offset} LIMIT ${limit}
-            `, [userid, ...params.slice(1)]),
+        // Construir parámetros finales
+        const queryParams = [userid, ...params];
 
-            pool.query(`SELECT COUNT(*) as totaltickets FROM "Tickets" t ${whereClause}`, params)
-        ]);
+        const ticketsResult = await pool.query(`
+            SELECT t.ticketid, t.title, t.status, t.createdat, t.description,
+                   u.fullname as createdby,
+                   (SELECT COUNT(*) 
+                    FROM "TicketMessages" tm 
+                    WHERE tm.ticketid = t.ticketid 
+                      AND tm.isread = false 
+                      AND tm.senderid != $1) as unreadcount
+            FROM "Tickets" t
+            JOIN "Users" u ON t.createdbyuserid = u.userid
+            ${whereClause}
+            ORDER BY t.createdat DESC
+            OFFSET $${queryParams.length + 1} LIMIT $${queryParams.length + 2}
+        `, [...queryParams, offset, limit]);
+
+        const countResult = await pool.query(`
+            SELECT COUNT(*) as totaltickets 
+            FROM "Tickets" t 
+            ${whereClause}
+        `, params);
 
         const totalTickets = parseInt(countResult.rows[0].totaltickets, 10);
         const totalPages = Math.ceil(totalTickets / limit);
@@ -109,16 +117,17 @@ exports.getTickets = async (req, res) => {
             totalPages,
             currentPage: page
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).send('Error en el servidor al obtener los tickets.');
     }
 };
 
+// Obtener ticket por ID
 exports.getTicketById = async (req, res) => {
-    const { id: ticketid } = req.params;
-    const { id: userid, area: userarea } = req.user;
+    const ticketid = parseInt(req.params.id, 10);
+    const userid = parseInt(req.user.id, 10);
+    const userarea = req.user.area;
 
     try {
         const pool = await getConnection();
@@ -153,10 +162,11 @@ exports.getTicketById = async (req, res) => {
     }
 };
 
+// Actualizar estado del ticket
 exports.updateTicketStatus = async (req, res) => {
-    const { id: ticketid } = req.params;
+    const ticketid = parseInt(req.params.id, 10);
     const { status } = req.body;
-    const { area: userarea } = req.user;
+    const userarea = req.user.area;
 
     if (!['Soporte', 'Contabilidad'].includes(userarea)) {
         return res.status(403).json({ msg: 'No tienes permiso para cambiar el estado.' });
@@ -189,8 +199,9 @@ exports.updateTicketStatus = async (req, res) => {
     }
 };
 
+// Obtener mensajes de un ticket
 exports.getTicketMessages = async (req, res) => {
-    const { id: ticketid } = req.params;
+    const ticketid = parseInt(req.params.id, 10);
 
     try {
         const pool = await getConnection();
@@ -209,11 +220,12 @@ exports.getTicketMessages = async (req, res) => {
     }
 };
 
+// Agregar mensaje a un ticket
 exports.addTicketMessage = async (req, res) => {
-    const { id: ticketid } = req.params;
+    const ticketid = parseInt(req.params.id, 10);
+    const senderid = parseInt(req.user.id, 10);
     const messagetext = req.body.messagetext || '';
     const file = req.file;
-    const senderid = req.user.id;
 
     if (!messagetext && !file) return res.status(400).json({ msg: 'El mensaje no puede estar vacío.' });
 
@@ -244,7 +256,7 @@ exports.addTicketMessage = async (req, res) => {
         const ticketResult = await pool.query(`SELECT title, createdbyuserid FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
 
         req.io.emit('ticketUpdate', {
-            ticketId: parseInt(ticketid, 10),
+            ticketId: ticketid,
             title: ticketResult.rows[0].title,
             senderName: fullMessage.senderfullname,
             senderId: senderid,
@@ -258,9 +270,10 @@ exports.addTicketMessage = async (req, res) => {
     }
 };
 
+// Marcar mensajes como leídos
 exports.markMessagesAsRead = async (req, res) => {
-    const { id: ticketid } = req.params;
-    const { id: userid } = req.user;
+    const ticketid = parseInt(req.params.id, 10);
+    const userid = parseInt(req.user.id, 10);
 
     try {
         const pool = await getConnection();
@@ -279,10 +292,12 @@ exports.markMessagesAsRead = async (req, res) => {
     }
 };
 
+// Actualizar ticket
 exports.updateTicket = async (req, res) => {
-    const { id: ticketid } = req.params;
+    const ticketid = parseInt(req.params.id, 10);
+    const userid = parseInt(req.user.id, 10);
+    const userrole = req.user.role;
     const { title, description } = req.body;
-    const { id: userid, role: userrole } = req.user;
 
     if (!title || !description) return res.status(400).json({ msg: 'El título y la descripción son requeridos.' });
 
@@ -319,9 +334,11 @@ exports.updateTicket = async (req, res) => {
     }
 };
 
+// Cancelar ticket
 exports.cancelTicket = async (req, res) => {
-    const { id: ticketid } = req.params;
-    const { id: userid, role: userrole } = req.user;
+    const ticketid = parseInt(req.params.id, 10);
+    const userid = parseInt(req.user.id, 10);
+    const userrole = req.user.role;
 
     try {
         const pool = await getConnection();
