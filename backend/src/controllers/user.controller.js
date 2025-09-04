@@ -52,6 +52,7 @@ exports.loginUser = async (req, res) => {
         const payload = {
             user: {
                 id: parseInt(user.userid, 10),
+                fullname: user.fullname,
                 role: user.role,
                 area: user.area
             }

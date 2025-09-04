@@ -48,49 +48,56 @@ exports.getTickets = async (req, res) => {
             WHERE status = 'Resuelto' AND resolvedat < NOW() - INTERVAL '1 day'
         `);
 
-        let conditions = [];
-        let params = [];
+        const whereParams = [];
         let paramIndex = 1;
+        let conditions = [];
 
         // Filtro por área/usuario
         if (userArea === 'Personal Operativo') {
-            conditions.push(`createdbyuserid = $${paramIndex++}`);
-            params.push(userId); // integer
+            conditions.push(`createdbyuserid = ${paramIndex++}`);
+            whereParams.push(userId);
         } else {
-            conditions.push(`(assignedtoarea = $${paramIndex} OR createdbyuserid = $${paramIndex + 1})`);
-            params.push(userArea, userId); // string, integer
-            paramIndex += 2;
+            conditions.push(`(assignedtoarea = ${paramIndex++} OR createdbyuserid = ${paramIndex++})`);
+            whereParams.push(userArea, userId);
         }
 
         // Filtro por searchTerm
         if (searchTerm) {
-            conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-            params.push(`%${searchTerm}%`);
+            conditions.push(`(title ILIKE ${paramIndex} OR description ILIKE ${paramIndex})`);
+            whereParams.push(`%${searchTerm}%`);
             paramIndex++;
         }
 
         // Filtro por status
         if (status && status !== 'Todos') {
-            conditions.push(`status = $${paramIndex}`);
-            params.push(status);
-            paramIndex++;
+            conditions.push(`status = ${paramIndex++}`);
+            whereParams.push(status);
         }
 
         // Filtro por fechas
         if (dateFrom) {
-            conditions.push(`createdat >= $${paramIndex}`);
-            params.push(dateFrom);
-            paramIndex++;
+            conditions.push(`createdat >= ${paramIndex++}`);
+            whereParams.push(dateFrom);
         }
         if (dateTo) {
-            conditions.push(`createdat < $${paramIndex}`);
-            params.push(dateTo);
-            paramIndex++;
+            conditions.push(`createdat < ${paramIndex++}`);
+            whereParams.push(dateTo);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-        // Consulta principal de tickets
+        // Conteo total para paginación
+        const countQuery = `SELECT COUNT(*) AS totaltickets FROM "Tickets" t ${whereClause}`;
+        const countResult = await pool.query(countQuery, whereParams);
+        const totalTickets = parseInt(countResult.rows[0].totaltickets, 10);
+        const totalPages = Math.ceil(totalTickets / limit);
+
+        // Parámetros y cláusula WHERE para la consulta principal de tickets
+        const ticketsParams = [userId, ...whereParams, offset, limit];
+        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `${parseInt(n) + 1}`);
+        
+        const offsetLimitIndex = whereParams.length + 2;
+
         const ticketsQuery = `
             SELECT 
                 t.ticketid, t.title, t.status, t.createdat, t.description,
@@ -104,20 +111,12 @@ exports.getTickets = async (req, res) => {
                 ) AS unreadcount
             FROM "Tickets" t
             JOIN "Users" u ON t.createdbyuserid = u.userid
-            ${whereClause}
+            ${ticketsWhereClause}
             ORDER BY t.createdat DESC
-            OFFSET $${paramIndex} LIMIT $${paramIndex + 1}
+            OFFSET ${offsetLimitIndex} LIMIT ${offsetLimitIndex + 1}
         `;
-
-        params.push(userId, limit); // última posición: offset y limit
-        const ticketsResult = await pool.query(ticketsQuery, [...params.slice(0, paramIndex - 1), offset, limit]);
-
-        // Conteo total para paginación
-        const countQuery = `SELECT COUNT(*) AS totaltickets FROM "Tickets" t ${whereClause}`;
-        const countResult = await pool.query(countQuery, params.slice(0, paramIndex - 1));
-
-        const totalTickets = parseInt(countResult.rows[0].totaltickets, 10);
-        const totalPages = Math.ceil(totalTickets / limit);
+        
+        const ticketsResult = await pool.query(ticketsQuery, ticketsParams);
 
         res.json({
             tickets: ticketsResult.rows,

@@ -6,14 +6,30 @@ exports.getDashboardStats = async (req, res) => {
     try {
         const pool = await getConnection();
 
-        // Obtener total de tickets y tickets abiertos
-        const totalVsOpenResult = await pool.query(`
-            SELECT 
-                COUNT(*) AS total, 
-                COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
-            FROM "Tickets"
-            WHERE (assignedtoarea = $1 OR createdbyuserid = $2) AND status != 'Cancelado'
-        `, [userArea, userId]);
+        let totalVsOpenQuery;
+        let totalVsOpenParams;
+
+        if (userArea === 'Personal Operativo') {
+            totalVsOpenQuery = `
+                SELECT 
+                    COUNT(*) AS total, 
+                    COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
+                FROM "Tickets"
+                WHERE createdbyuserid = $1 AND status != 'Cancelado'
+            `;
+            totalVsOpenParams = [userId];
+        } else {
+            totalVsOpenQuery = `
+                SELECT 
+                    COUNT(*) AS total, 
+                    COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
+                FROM "Tickets"
+                WHERE (assignedtoarea = $1 OR createdbyuserid = $2) AND status != 'Cancelado'
+            `;
+            totalVsOpenParams = [userArea, userId];
+        }
+
+        const totalVsOpenResult = await pool.query(totalVsOpenQuery, totalVsOpenParams);
 
         // Obtener flujo de tickets: realizados y recibidos
         const ticketFlowResult = await pool.query(`
