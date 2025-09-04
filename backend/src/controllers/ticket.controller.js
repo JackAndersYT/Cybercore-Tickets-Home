@@ -5,6 +5,7 @@ require('dotenv').config();
 
 // Crear un ticket
 exports.createTicket = async (req, res) => {
+    console.log('Request body for createTicket:', req.body);
     const { title, description, assignedtoarea } = req.body;
     const createdbyuserid = parseInt(req.user.UserID, 10); // Use PascalCase
 

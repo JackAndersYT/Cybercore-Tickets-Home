@@ -62,7 +62,7 @@ const AdminUsersPage = () => {
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     
-    const [editFormData, setEditFormData] = useState({ fullName: '', role: '', area: '', password: '', confirmPassword: '' });
+    const [editFormData, setEditFormData] = useState({ fullname: '', role: '', area: '', password: '', confirmPassword: '' });
     const [registerFormData, setRegisterFormData] = useState({ fullname: '', username: '', password: '', confirmPassword: '', role: 'Estándar', area: 'Personal Operativo' });
     
     const [filters, setFilters] = useState({ area: 'Todos', role: 'Todos' });
@@ -104,7 +104,7 @@ const AdminUsersPage = () => {
     const handleEditClick = (user) => {
         clearMessages();
         setSelectedUser(user);
-        setEditFormData({ fullName: user.FullName, role: user.Role, area: user.Area, password: '', confirmPassword: '' });
+        setEditFormData({ fullname: user.FullName, role: user.Role, area: user.Area, password: '', confirmPassword: '' });
         setIsEditModalOpen(true);
     };
 
@@ -136,7 +136,7 @@ const AdminUsersPage = () => {
             return setEditFormErrors(errors);
         }
         try {
-            await userService.update(selectedUser.UserID, { fullname: editFormData.fullName, role: editFormData.role, area: editFormData.area });
+            await userService.update(selectedUser.UserID, { fullname: editFormData.fullname, role: editFormData.role, area: editFormData.area });
             if (editFormData.password) {
                 await userService.updatePassword(selectedUser.UserID, editFormData.password);
             }
@@ -731,7 +731,7 @@ const AdminUsersPage = () => {
                                         onChange={(e) => handleFormChange(e, setRegisterFormData, setRegisterFormErrors)} 
                                         required 
                                         className={`w-full px-4 py-3 pr-12 bg-slate-800/50 backdrop-blur-sm border rounded-xl text-white placeholder-slate-400 transition-all duration-300 ${registerFormErrors.confirmPassword ? 'border-red-500/60 focus:ring-red-500/20' : 'border-slate-600/50 focus:border-cyan-400/60 focus:ring-cyan-400/20'}`} 
-                                        placeholder="Confirma la nueva contraseña" 
+                                        placeholder="Confirma la contraseña" 
                                     />
                                 </div>
                             </div>
@@ -808,8 +808,8 @@ const AdminUsersPage = () => {
                                 <label className="block text-sm font-semibold text-cyan-400">Nombre Completo</label>
                                 <input 
                                     type="text" 
-                                    name="fullName" 
-                                    value={editFormData.fullName} 
+                                    name="fullname" 
+                                    value={editFormData.fullname} 
                                     onChange={(e) => handleFormChange(e, setEditFormData, setEditFormErrors)} 
                                     className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300" 
                                     placeholder="Ingresa el nombre completo" 
