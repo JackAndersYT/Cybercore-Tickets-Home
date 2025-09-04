@@ -137,12 +137,24 @@ exports.getTicketById = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.query(`
-            SELECT t.*, u.fullname as createdbyfullname,
-                   (SELECT COUNT(*) 
+            SELECT
+                t.ticketid AS "TicketID",
+                t.title AS "Title",
+                t.description AS "Description",
+                t.status AS "Status",
+                t.createdbyuserid AS "CreatedByUserID",
+                t.assignedtoarea AS "AssignedToArea",
+                t.createdat AS "CreatedAt",
+                t.updatedat AS "UpdatedAt",
+                t.resolvedat AS "ResolvedAt",
+                u.fullname AS "CreatedByFullName",
+                (
+                    SELECT COUNT(*) 
                     FROM "TicketMessages" tm 
                     WHERE tm.ticketid = t.ticketid 
                       AND tm.isread = false 
-                      AND tm.senderid != $1) as unreadcount
+                      AND tm.senderid != $1
+                ) AS "unreadCount"
             FROM "Tickets" t
             JOIN "Users" u ON t.createdbyuserid = u.userid
             WHERE t.ticketid = $2
@@ -335,7 +347,7 @@ exports.updateTicket = async (req, res) => {
         res.json({ msg: 'Ticket actualizado correctamente.' });
     } catch (error) {
         console.error(error);
-        res.status(500).send('Error en el servidor al actualizar el ticket.');
+        res.status(500).send('Error en el servidor.');
     }
 };
 
