@@ -164,10 +164,15 @@ exports.getTicketById = async (req, res) => {
 
         const ticket = result.rows[0];
 
-        if (userarea === 'Personal Operativo') {
-            if (ticket.createdbyuserid !== userid) return res.status(403).json({ msg: 'Acceso denegado.' });
-        } else {
-            if (ticket.assignedtoarea !== userarea && ticket.createdbyuserid !== userid) {
+        // Authorization logic
+        if (req.user.Role === 'Administrador') {
+            // Admin can see all tickets
+        } else if (userarea === 'Personal Operativo') {
+            if (ticket.CreatedByUserID !== userid) {
+                return res.status(403).json({ msg: 'Acceso denegado.' });
+            }
+        } else { // Other roles like Soporte, Contabilidad
+            if (ticket.AssignedToArea !== userarea && ticket.CreatedByUserID !== userid) {
                 return res.status(403).json({ msg: 'No tienes permiso para ver este ticket.' });
             }
         }
