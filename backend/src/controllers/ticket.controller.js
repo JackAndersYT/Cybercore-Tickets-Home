@@ -94,15 +94,19 @@ exports.getTickets = async (req, res) => {
 
         const ticketsQuery = `
             SELECT 
-                t.ticketid, t.title, t.status, t.createdat, t.description,
-                u.fullname AS createdby,
+                t.ticketid AS "TicketID",
+                t.title AS "Title",
+                t.status AS "Status",
+                t.createdat AS "CreatedAt",
+                t.description AS "Description",
+                u.fullname AS "CreatedBy",
                 (
                     SELECT COUNT(*) 
                     FROM "TicketMessages" tm
                     WHERE tm.ticketid = t.ticketid
                       AND tm.isread = false
                       AND tm.senderid != $1
-                ) AS unreadcount
+                ) AS "unreadCount"
             FROM "Tickets" t
             JOIN "Users" u ON t.createdbyuserid = u.userid
             ${ticketsWhereClause}
