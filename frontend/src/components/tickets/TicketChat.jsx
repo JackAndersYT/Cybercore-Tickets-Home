@@ -5,7 +5,7 @@ import socket from '../../services/socket';
 import { Check, CheckCheck, Zap, SendHorizontal, Paperclip, X, File as FileIcon, User, Users } from 'lucide-react';
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
-import { API_BASE_URL } from '../../config'; 
+import { API_BASE_URL } from '../../config';
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
@@ -13,10 +13,10 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 
-const TicketChat = ({ 
-    ticketId, 
-    isExpanded = false, 
-    className = '', 
+const TicketChat = ({
+    ticketId,
+    isExpanded = false,
+    className = '',
     style = {},
     onlineUsers = [],
     isSocketConnected = false,
@@ -29,7 +29,7 @@ const TicketChat = ({
     const [typingUser, setTypingUser] = useState(null);
     const [firstUnreadId, setFirstUnreadId] = useState(null);
     const typingTimeoutRef = useRef(null);
-    
+
     const [attachedFile, setAttachedFile] = useState(null);
     const fileInputRef = useRef(null);
     const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -38,7 +38,7 @@ const TicketChat = ({
 
     const [localIsConnected, setLocalIsConnected] = useState(socket.connected);
     const [localOnlineUsers, setLocalOnlineUsers] = useState([]);
-    
+
     const currentIsConnected = disableSocketManagement ? isSocketConnected : localIsConnected;
     const currentOnlineUsers = disableSocketManagement ? onlineUsers : localOnlineUsers;
 
@@ -51,6 +51,8 @@ const TicketChat = ({
 
     // Obtener el nombre del otro usuario en el chat
     const otherUserName = useMemo(() => {
+        console.log('Messages for otherUserName:', messages);
+        console.log('Current UserID:', user.UserID);
         if (messages.length > 0) {
             const otherMessage = messages.find(msg => msg.SenderID !== user.UserID);
             return otherMessage ? otherMessage.SenderFullName : 'Chat';
@@ -63,10 +65,10 @@ const TicketChat = ({
         return currentOnlineUsers.some(u => u.UserID !== user.UserID);
     }, [currentOnlineUsers, user.UserID]);
 
-    const imageMessages = useMemo(() => 
+    const imageMessages = useMemo(() =>
         messages.filter(msg => msg.FileURL && msg.FileType.startsWith('image/'))
-                .map(msg => ({ 
-                    src: getFullFileUrl(msg.FileURL), 
+                .map(msg => ({
+                    src: getFullFileUrl(msg.FileURL),
                     title: msg.FileName,
                     description: `Enviado por: ${msg.SenderFullName}`
                 }))
@@ -76,13 +78,13 @@ const TicketChat = ({
     const groupedMessages = useMemo(() => {
         const groups = [];
         let currentGroup = null;
-        
+
         messages.forEach(msg => {
             const msgDate = new Date(msg.SentAt);
             const msgDateStr = msgDate.toLocaleDateString();
-            
-            if (!currentGroup || 
-                currentGroup.senderId !== msg.SenderID || 
+
+            if (!currentGroup ||
+                currentGroup.senderId !== msg.SenderID ||
                 currentGroup.date !== msgDateStr ||
                 (new Date(msg.SentAt) - new Date(currentGroup.messages[currentGroup.messages.length - 1].SentAt)) > 60000) {
                 currentGroup = {
@@ -97,7 +99,7 @@ const TicketChat = ({
                 currentGroup.messages.push(msg);
             }
         });
-        
+
         return groups;
     }, [messages, user.UserID]);
 
@@ -136,7 +138,7 @@ const TicketChat = ({
                 setFirstUnreadId(firstUnread.MessageID);
                 await ticketService.markAsRead(ticketId);
             }
-            
+
             setIsInitialLoad(false);
         };
 
@@ -148,12 +150,12 @@ const TicketChat = ({
             } else {
                 socket.emit('joinTicketRoom', { ticketId, user });
             }
-            
+
             const onConnect = () => {
                 setLocalIsConnected(true);
                 socket.emit('joinTicketRoom', { ticketId, user });
             };
-            
+
             const onDisconnect = () => {
                 setLocalIsConnected(false);
             };
@@ -164,7 +166,7 @@ const TicketChat = ({
             socket.on('roomUsersUpdate', (usersInRoom) => {
                 setLocalOnlineUsers(usersInRoom);
             });
-            
+
             return () => {
                 socket.emit('leaveTicketRoom', ticketId);
                 socket.off('connect', onConnect);
@@ -182,7 +184,7 @@ const TicketChat = ({
                 ticketService.markAsRead(ticketId);
             }
         };
-        
+
         const onUserTyping = ({ userName }) => setTypingUser(userName);
         const onUserStoppedTyping = () => setTypingUser(null);
         const onMessagesRead = ({ readerId }) => {
@@ -195,7 +197,7 @@ const TicketChat = ({
         socket.on('userTyping', onUserTyping);
         socket.on('userStoppedTyping', onUserStoppedTyping);
         socket.on('messagesRead', onMessagesRead);
-        
+
         window.addEventListener('paste', handlePaste);
 
         return () => {
@@ -233,7 +235,7 @@ const TicketChat = ({
         socket.emit('stopTyping', ticketId);
 
         const formData = new FormData();
-        formData.append('messageText', newMessage);
+        formData.append('messagetext', newMessage); // Changed from 'messageText' to 'messagetext'
         if (attachedFile) {
             formData.append('file', attachedFile);
         }
@@ -295,7 +297,7 @@ const TicketChat = ({
                                         </>
                                     )}
                                 </div>
-                                
+
                                 {/* Información del usuario */}
                                 <div>
                                     <h3 className="text-lg font-semibold text-white">
@@ -335,16 +337,16 @@ const TicketChat = ({
                     </div>
 
                     {/* Contenedor de mensajes */}
-                    <div 
-                        ref={chatContainerRef} 
+                    <div
+                        ref={chatContainerRef}
                         className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-gray-800/50 scrollbar-thumb-cyan-500/30"
                         style={{ overflowAnchor: 'none' }}
                     >
                         <div className="px-4 py-4 space-y-4">
                             {groupedMessages.map((group, groupIndex) => {
-                                const showDate = groupIndex === 0 || 
+                                const showDate = groupIndex === 0 ||
                                     groupedMessages[groupIndex - 1].date !== group.date;
-                                
+
                                 return (
                                     <div key={`group-${groupIndex}`}>
                                         {/* Separador de fecha */}
@@ -376,24 +378,24 @@ const TicketChat = ({
                                                     <div key={msg.MessageID} className={`flex ${group.isOwn ? 'justify-end' : 'justify-start'}`}>
                                                         <div className={`group relative ${group.isOwn ? 'ml-12' : 'mr-12'}`}>
                                                             <div className={`relative px-4 py-2 backdrop-blur-sm transition-all duration-200 hover:scale-[1.02] ${
-                                                                group.isOwn 
-                                                                    ? 'bg-gradient-to-br from-cyan-600/30 via-cyan-500/20 to-blue-600/30 border border-cyan-400/30 rounded-2xl rounded-br-md' 
+                                                                group.isOwn
+                                                                    ? 'bg-gradient-to-br from-cyan-600/30 via-cyan-500/20 to-blue-600/30 border border-cyan-400/30 rounded-2xl rounded-br-md'
                                                                     : 'bg-gradient-to-br from-purple-800/30 via-violet-700/20 to-indigo-800/30 border border-purple-400/30 rounded-2xl rounded-bl-md'
-                                                            } ${msgIndex === 0 ? (group.isOwn ? 'rounded-tr-2xl' : 'rounded-tl-2xl') : ''} 
+                                                            } ${msgIndex === 0 ? (group.isOwn ? 'rounded-tr-2xl' : 'rounded-tl-2xl') : ''}
                                                                ${msgIndex === group.messages.length - 1 ? (group.isOwn ? 'rounded-br-2xl' : 'rounded-bl-2xl') : ''}`}>
-                                                                
+
                                                                 {/* Archivo adjunto */}
                                                                 {msg.FileURL && (
                                                                     <div className="mb-2">
                                                                         {msg.FileType.startsWith('image/') ? (
-                                                                            <img 
-                                                                                src={getFullFileUrl(msg.FileURL)} 
-                                                                                alt={msg.FileName} 
-                                                                                className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer" 
+                                                                            <img
+                                                                                src={getFullFileUrl(msg.FileURL)}
+                                                                                alt={msg.FileName}
+                                                                                className="rounded-lg max-w-full max-h-64 object-cover cursor-pointer"
                                                                                 onClick={() => handleImageClick(getFullFileUrl(msg.FileURL))}
                                                                             />
                                                                         ) : (
-                                                                            <a href={getFullFileUrl(msg.FileURL)} target="_blank" rel="noopener noreferrer" 
+                                                                            <a href={getFullFileUrl(msg.FileURL)} target="_blank" rel="noopener noreferrer"
                                                                                className="flex items-center space-x-2 p-2 bg-gray-700/50 rounded-lg hover:bg-gray-600/50 transition-colors">
                                                                                 <FileIcon className="w-5 h-5 text-cyan-400 flex-shrink-0" />
                                                                                 <span className="text-sm text-gray-300 truncate">{msg.FileName}</span>
@@ -408,7 +410,7 @@ const TicketChat = ({
                                                                         {msg.MessageText}
                                                                     </p>
                                                                 )}
-                                                                
+
                                                                 {/* Hora y estado (solo en el último mensaje del grupo) */}
                                                                 {msgIndex === group.messages.length - 1 && (
                                                                     <div className="flex items-center justify-end space-x-1 mt-1">
@@ -424,7 +426,7 @@ const TicketChat = ({
                                                                         {group.isOwn && (
                                                                             <div className="flex items-center">
                                                                                 {msg.IsRead ? (
-                                                                                    <CheckCheck className="w-3.5 h-3.5 text-cyan-400" /> 
+                                                                                    <CheckCheck className="w-3.5 h-3.5 text-cyan-400" />
                                                                                 ) : (
                                                                                     <Check className="w-3.5 h-3.5 text-gray-400" />
                                                                                 )}
@@ -473,20 +475,20 @@ const TicketChat = ({
                                     )}
                                     <span className="text-sm text-gray-300 truncate">{attachedFile.name}</span>
                                 </div>
-                                <button 
-                                    onClick={() => setAttachedFile(null)} 
+                                <button
+                                    onClick={() => setAttachedFile(null)}
                                     className="p-1 text-gray-400 hover:text-white transition-colors"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
                         )}
-                        
+
                         <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-                            
-                            <button 
-                                type="button" 
+
+                            <button
+                                type="button"
                                 onClick={() => fileInputRef.current.click()}
                                 className="p-2.5 text-gray-400 hover:text-cyan-400 transition-colors"
                             >
@@ -505,13 +507,13 @@ const TicketChat = ({
                                     className="w-full px-4 py-2.5 bg-gray-800/70 backdrop-blur-sm border border-cyan-400/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400/40 focus:bg-gray-800/90 transition-all duration-200 text-sm"
                                 />
                             </div>
-                            
-                            <button 
-                                type="submit" 
+
+                            <button
+                                type="submit"
                                 disabled={!newMessage.trim() && !attachedFile}
                                 className={`p-2.5 rounded-full transition-all duration-200 ${
                                     newMessage.trim() || attachedFile
-                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25 transform hover:scale-105' 
+                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25 transform hover:scale-105'
                                         : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
                                 }`}
                             >
@@ -521,7 +523,7 @@ const TicketChat = ({
                     </div>
                 </div>
             </div>
-            
+
             <Lightbox
                 open={lightboxOpen}
                 close={() => setLightboxOpen(false)}
