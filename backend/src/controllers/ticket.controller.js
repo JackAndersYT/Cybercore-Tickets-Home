@@ -5,9 +5,9 @@ require('dotenv').config();
 
 // Crear un ticket
 exports.createTicket = async (req, res) => {
-    console.log('Request body for createTicket:', req.body);
-    const { title, description, assignedtoarea } = req.body;
-    const createdbyuserid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const { title, description } = req.body;
+    const assignedtoarea = req.body.assignedtoarea || req.body.assignedToArea;
+    const createdbyuserid = parseInt(req.user.UserID, 10);
 
     if (!title || !description || !assignedtoarea) {
         return res.status(400).json({ msg: 'Por favor, complete todos los campos requeridos.' });

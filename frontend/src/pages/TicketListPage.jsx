@@ -29,7 +29,7 @@ const TicketListPage = () => {
     const [registerFormData, setRegisterFormData] = useState({
         title: '',
         description: '',
-        assignedToArea: ''
+        assignedtoarea: ''
     });
     const [registerFormErrors, setRegisterFormErrors] = useState({});
     const [registerLoading, setRegisterLoading] = useState(false);
@@ -109,7 +109,7 @@ const TicketListPage = () => {
 
     const handleCloseRegisterModal = () => {
         setIsRegisterModalOpen(false);
-        setRegisterFormData({ title: '', description: '', assignedToArea: '' });
+        setRegisterFormData({ title: '', description: '', assignedtoarea: '' });
         setRegisterFormErrors({});
     };
 
@@ -590,8 +590,8 @@ const TicketListPage = () => {
                         <div className="relative group">
                             <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-blue-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
                             <select
-                                name="assignedToArea"
-                                value={registerFormData.assignedToArea}
+                                name="assignedtoarea"
+                                value={registerFormData.assignedtoarea}
                                 onChange={handleRegisterFormChange}
                                 required
                                 className="relative w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300"
