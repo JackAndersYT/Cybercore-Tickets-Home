@@ -228,7 +228,17 @@ exports.getTicketMessages = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.query(`
-            SELECT m.*, u.fullname as senderfullname
+            SELECT 
+                m.messageid AS "MessageID",
+                m.ticketid AS "TicketID",
+                m.senderid AS "SenderID",
+                m.messagetext AS "MessageText",
+                m.sentat AS "SentAt",
+                m.isread AS "IsRead",
+                m.filename AS "FileName",
+                m.fileurl AS "FileURL",
+                m.filetype AS "FileType",
+                u.fullname AS "SenderFullName"
             FROM "TicketMessages" m
             JOIN "Users" u ON m.senderid = u.userid
             WHERE m.ticketid = $1
@@ -261,16 +271,25 @@ exports.addTicketMessage = async (req, res) => {
         const insertResult = await pool.query(`
             INSERT INTO "TicketMessages" (ticketid, senderid, messagetext, filename, fileurl, filetype)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *
+            RETURNING
+                messageid AS "MessageID",
+                ticketid AS "TicketID",
+                senderid AS "SenderID",
+                messagetext AS "MessageText",
+                sentat AS "SentAt",
+                isread AS "IsRead",
+                filename AS "FileName",
+                fileurl AS "FileURL",
+                filetype AS "FileType"
         `, [ticketid, senderid, messagetext || null, filename, fileurl, filetype]);
 
-        const newMessage = insertResult.rows[0];
+        const newMessage = insertResult.rows[0]; // This will now have PascalCase properties
 
-        const userResult = await pool.query(`SELECT fullname FROM "Users" WHERE userid = $1`, [senderid]);
+        const userResult = await pool.query(`SELECT fullname AS "FullName" FROM "Users" WHERE userid = $1`, [senderid]); // Alias fullname here too
 
         const fullMessage = {
             ...newMessage,
-            senderfullname: userResult.rows[0].fullname
+            SenderFullName: userResult.rows[0].FullName // Use PascalCase
         };
 
         req.io.to(ticketid).emit('newMessage', fullMessage);
