@@ -49,12 +49,14 @@ exports.loginUser = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.passwordhash);
         if (!isMatch) return res.status(400).json({ msg: "Credenciales inválidas." });
 
+        // Frontend expects PascalCase properties.
+        // node-postgres returns lowercase properties from DB (e.g., user.userid, user.fullname)
         const payload = {
             user: {
-                id: parseInt(user.userid, 10),
-                fullname: user.fullname,
-                role: user.role,
-                area: user.area
+                UserID: user.userid,
+                FullName: user.fullname,
+                Role: user.role,
+                Area: user.area
             }
         };
 
@@ -68,7 +70,7 @@ exports.loginUser = async (req, res) => {
 
 // Obtener usuario logueado
 exports.getLoggedInUser = async (req, res) => {
-    const userid = parseInt(req.user.id, 10);
+    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
     try {
         const pool = await getConnection();
         const result = await pool.query(
@@ -138,8 +140,8 @@ exports.updateUser = async (req, res) => {
 // Eliminar usuario
 exports.deleteUser = async (req, res) => {
     const useridToDelete = parseInt(req.params.id, 10);
-    const adminuserid = parseInt(req.user.id, 10);
-    const adminuserrole = req.user.role;
+    const adminuserid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const adminuserrole = req.user.Role; // Use PascalCase
 
     if (adminuserrole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });

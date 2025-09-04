@@ -1,7 +1,7 @@
 const { getConnection } = require('../config/db');
 
 exports.getDashboardStats = async (req, res) => {
-    const { id: userId, area: userArea } = req.user;
+    const { UserID: userId, Area: userArea } = req.user; // Use PascalCase
 
     try {
         const pool = await getConnection();
@@ -15,7 +15,7 @@ exports.getDashboardStats = async (req, res) => {
                     COUNT(*) AS total, 
                     COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
                 FROM "Tickets"
-                WHERE createdbyuserid::integer = $1 AND status != 'Cancelado'
+                WHERE createdbyuserid = $1 AND status != 'Cancelado'
             `;
             totalVsOpenParams = [userId];
         } else {
@@ -24,7 +24,7 @@ exports.getDashboardStats = async (req, res) => {
                     COUNT(*) AS total, 
                     COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
                 FROM "Tickets"
-                WHERE (assignedtoarea = $1 OR createdbyuserid::integer = $2) AND status != 'Cancelado'
+                WHERE (assignedtoarea = $1 OR createdbyuserid = $2) AND status != 'Cancelado'
             `;
             totalVsOpenParams = [userArea, userId];
         }
@@ -34,7 +34,7 @@ exports.getDashboardStats = async (req, res) => {
         // Obtener flujo de tickets: realizados y recibidos
         const ticketFlowResult = await pool.query(`
             SELECT
-                (SELECT COUNT(*) FROM "Tickets" WHERE createdbyuserid::integer = $1) AS realizados,
+                (SELECT COUNT(*) FROM "Tickets" WHERE createdbyuserid = $1) AS realizados,
                 (SELECT COUNT(*) FROM "Tickets" WHERE assignedtoarea = $2) AS recibidos
         `, [userId, userArea]);
 

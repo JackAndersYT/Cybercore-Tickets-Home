@@ -6,7 +6,7 @@ require('dotenv').config();
 // Crear un ticket
 exports.createTicket = async (req, res) => {
     const { title, description, assignedtoarea } = req.body;
-    const createdbyuserid = parseInt(req.user.id, 10);
+    const createdbyuserid = parseInt(req.user.UserID, 10); // Use PascalCase
 
     if (!title || !description || !assignedtoarea) {
         return res.status(400).json({ msg: 'Por favor, complete todos los campos requeridos.' });
@@ -29,10 +29,7 @@ exports.createTicket = async (req, res) => {
 
 // Obtener tickets con filtros y paginación
 exports.getTickets = async (req, res) => {
-    console.log("--- Entering getTickets ---");
-    const { id: userId, area: userArea } = req.user;
-    console.log("DEBUG: User from token:", { userId, userArea, typeOfUserId: typeof userId, typeOfUserArea: typeof userArea });
-
+    const { UserID: userId, Area: userArea } = req.user; // Use PascalCase
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
@@ -40,7 +37,6 @@ exports.getTickets = async (req, res) => {
     const status = req.query.status || 'Todos';
     const dateFrom = req.query.datefrom;
     const dateTo = req.query.dateto;
-    console.log("DEBUG: Query params:", { page, limit, offset, searchTerm, status, dateFrom, dateTo });
 
     try {
         const pool = await getConnection();
@@ -60,7 +56,7 @@ exports.getTickets = async (req, res) => {
             whereParams.push(userId);
         } else {
             conditions.push(`(assignedtoarea = $${paramIndex++} OR createdbyuserid = $${paramIndex++})`);
-            whereParams.push(String(userArea), userId);
+            whereParams.push(userArea, userId);
         }
 
         if (searchTerm) {
@@ -86,9 +82,6 @@ exports.getTickets = async (req, res) => {
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
         const countQuery = `SELECT COUNT(*) AS totaltickets FROM "Tickets" t ${whereClause}`;
-        console.log("DEBUG: Count Query:", countQuery);
-        console.log("DEBUG: Count Params:", whereParams);
-
         const countResult = await pool.query(countQuery, whereParams);
         const totalTickets = parseInt(countResult.rows[0].totaltickets, 10);
         const totalPages = Math.ceil(totalTickets / limit);
@@ -116,9 +109,6 @@ exports.getTickets = async (req, res) => {
             OFFSET $${offsetLimitIndex} LIMIT $${offsetLimitIndex + 1}
         `;
         
-        console.log("DEBUG: Tickets Query:", ticketsQuery);
-        console.log("DEBUG: Tickets Params:", ticketsParams);
-
         const ticketsResult = await pool.query(ticketsQuery, ticketsParams);
 
         res.json({
@@ -136,8 +126,8 @@ exports.getTickets = async (req, res) => {
 // Obtener ticket por ID
 exports.getTicketById = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.id, 10);
-    const userarea = req.user.area;
+    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const userarea = req.user.Area; // Use PascalCase
 
     try {
         const pool = await getConnection();
@@ -176,7 +166,7 @@ exports.getTicketById = async (req, res) => {
 exports.updateTicketStatus = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { status } = req.body;
-    const userarea = req.user.area;
+    const userarea = req.user.Area; // Use PascalCase
 
     if (!['Soporte', 'Contabilidad'].includes(userarea)) {
         return res.status(403).json({ msg: 'No tienes permiso para cambiar el estado.' });
@@ -195,7 +185,7 @@ exports.updateTicketStatus = async (req, res) => {
         const params = [status];
 
         if (status === 'Resuelto') {
-            query += ", resolvedat = NOW()";
+            query += `, resolvedat = NOW()`;
         }
         query += ` WHERE ticketid = $2`;
         params.push(ticketid);
@@ -233,7 +223,7 @@ exports.getTicketMessages = async (req, res) => {
 // Agregar mensaje a un ticket
 exports.addTicketMessage = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const senderid = parseInt(req.user.id, 10);
+    const senderid = parseInt(req.user.UserID, 10); // Use PascalCase
     const messagetext = req.body.messagetext || '';
     const file = req.file;
 
@@ -283,7 +273,7 @@ exports.addTicketMessage = async (req, res) => {
 // Marcar mensajes como leídos
 exports.markMessagesAsRead = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.id, 10);
+    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
 
     try {
         const pool = await getConnection();
@@ -305,8 +295,8 @@ exports.markMessagesAsRead = async (req, res) => {
 // Actualizar ticket
 exports.updateTicket = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.id, 10);
-    const userrole = req.user.role;
+    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const userrole = req.user.Role; // Use PascalCase
     const { title, description } = req.body;
 
     if (!title || !description) return res.status(400).json({ msg: 'El título y la descripción son requeridos.' });
@@ -347,8 +337,8 @@ exports.updateTicket = async (req, res) => {
 // Cancelar ticket
 exports.cancelTicket = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.id, 10);
-    const userrole = req.user.role;
+    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const userrole = req.user.Role; // Use PascalCase
 
     try {
         const pool = await getConnection();
