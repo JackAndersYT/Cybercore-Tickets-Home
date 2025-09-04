@@ -70,7 +70,7 @@ exports.loginUser = async (req, res) => {
 
 // Obtener usuario logueado
 exports.getLoggedInUser = async (req, res) => {
-    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const userid = parseInt(req.user.UserID, 10);
     try {
         const pool = await getConnection();
         const result = await pool.query(
@@ -140,8 +140,8 @@ exports.updateUser = async (req, res) => {
 // Eliminar usuario
 exports.deleteUser = async (req, res) => {
     const useridToDelete = parseInt(req.params.id, 10);
-    const adminuserid = parseInt(req.user.UserID, 10); // Use PascalCase
-    const adminuserrole = req.user.Role; // Use PascalCase
+    const adminuserid = parseInt(req.user.UserID, 10);
+    const adminuserrole = req.user.Role;
 
     if (adminuserrole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });
