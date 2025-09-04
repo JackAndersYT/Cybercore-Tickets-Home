@@ -291,7 +291,7 @@ exports.addTicketMessage = async (req, res) => {
             ...newMessage,
             SenderFullName: userResult.rows[0].FullName // Use PascalCase
         };
-
+        console.log('Emitting newMessage:', fullMessage);
         req.io.to(ticketid).emit('newMessage', fullMessage);
 
         const ticketResult = await pool.query(`SELECT title, createdbyuserid FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
