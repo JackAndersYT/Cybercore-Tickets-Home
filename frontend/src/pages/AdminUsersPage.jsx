@@ -63,7 +63,7 @@ const AdminUsersPage = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     
     const [editFormData, setEditFormData] = useState({ fullName: '', role: '', area: '', password: '', confirmPassword: '' });
-    const [registerFormData, setRegisterFormData] = useState({ fullName: '', username: '', password: '', confirmPassword: '', role: 'Estándar', area: 'Personal Operativo' });
+    const [registerFormData, setRegisterFormData] = useState({ fullname: '', username: '', password: '', confirmPassword: '', role: 'Estándar', area: 'Personal Operativo' });
     
     const [filters, setFilters] = useState({ area: 'Todos', role: 'Todos' });
     const [currentPage, setCurrentPage] = useState(1);
@@ -121,7 +121,7 @@ const AdminUsersPage = () => {
     
     const handleCloseRegisterModal = () => {
         setIsRegisterModalOpen(false);
-        setRegisterFormData({ fullName: '', username: '', password: '', confirmPassword: '', role: 'Estándar', area: 'Personal Operativo' });
+        setRegisterFormData({ fullname: '', username: '', password: '', confirmPassword: '', role: 'Estándar', area: 'Personal Operativo' });
         setRegisterFormErrors({});
     };
 
@@ -675,8 +675,8 @@ const AdminUsersPage = () => {
                                 <label className="block text-sm font-semibold text-cyan-400">Nombre Completo</label>
                                 <input 
                                     type="text" 
-                                    name="fullName" 
-                                    value={registerFormData.fullName} 
+                                    name="fullname" 
+                                    value={registerFormData.fullname} 
                                     onChange={(e) => handleFormChange(e, setRegisterFormData, setRegisterFormErrors)} 
                                     required 
                                     className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300" 
@@ -951,4 +951,4 @@ const AdminUsersPage = () => {
     );
 };
 
-export default AdminUsersPage; 
+export default AdminUsersPage;
