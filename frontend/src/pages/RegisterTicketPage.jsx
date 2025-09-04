@@ -41,7 +41,7 @@ const RegisterTicketPage = () => {
         setLoading(true);
 
         try {
-            const response = await ticketService.create({ title, description, assignedToArea });
+            const response = await ticketService.create({ title, description, assignedtoarea: assignedToArea });
             setSuccess(response.msg);
             setTitle('');
             setDescription('');
