@@ -14,12 +14,20 @@ module.exports = async function (req, res, next) {
         // Verificar y decodificar el token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Convertir a número si viene como string
-        const userId = parseInt(decoded.user.id, 10);
+        // Asegurarse que el payload del token es correcto
+        if (!decoded.user || !decoded.user.UserID) {
+            return res.status(401).json({ msg: 'Token no es válido (payload incorrecto)' });
+        }
 
-        // Consultar si el usuario existe
+        const userId = parseInt(decoded.user.UserID, 10);
+
+        if (isNaN(userId)) {
+            return res.status(401).json({ msg: 'Token no es válido (ID de usuario incorrecto)' });
+        }
+
+        // Consultar si el usuario existe para asegurar que el token es de un usuario válido
         const userResult = await pool.query(
-            'SELECT "userid", "role", "area" FROM "Users" WHERE "userid" = $1',
+            'SELECT UserID, FullName, Role, Area FROM "Users" WHERE UserID = $1',
             [userId]
         );
 
@@ -27,11 +35,15 @@ module.exports = async function (req, res, next) {
             return res.status(401).json({ msg: 'Token no es válido (usuario no existe)' });
         }
 
-        // Guardar datos del usuario en req.user
+        // Los nombres de columna en la DB son con mayúsculas, pero node-postgres los devuelve en minúsculas.
+        const dbUser = userResult.rows[0];
+
+        // Adjuntar la información del usuario al request, manteniendo la consistencia con PascalCase
         req.user = {
-            id: userId,
-            role: userResult.rows[0].Role,
-            area: userResult.rows[0].Area
+            UserID: dbUser.userid,
+            FullName: dbUser.fullname,
+            Role: dbUser.role,
+            Area: dbUser.area
         };
 
         next();
