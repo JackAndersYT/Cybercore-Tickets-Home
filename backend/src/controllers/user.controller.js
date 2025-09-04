@@ -74,7 +74,13 @@ exports.getLoggedInUser = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.query(
-            `SELECT userid, fullname, username, role, area FROM "Users" WHERE userid = $1`,
+            `SELECT 
+                userid AS "UserID", 
+                fullname AS "FullName", 
+                username AS "Username", 
+                role AS "Role", 
+                area AS "Area" 
+             FROM "Users" WHERE userid = $1`,
             [userid]
         );
         res.json(result.rows[0]);

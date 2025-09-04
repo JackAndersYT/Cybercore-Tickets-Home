@@ -16,6 +16,7 @@ import {
 
 const MainLayout = () => {
     const { user, logout } = useContext(AuthContext);
+    console.log('User object in MainLayout:', user);
     const location = useLocation();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
