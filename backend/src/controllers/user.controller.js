@@ -100,7 +100,12 @@ exports.getAllUsers = async (req, res) => {
         const pool = await getConnection();
         const [usersResult, countResult] = await Promise.all([
             pool.query(
-                `SELECT userid, fullname, username, role, area
+                `SELECT 
+                    userid AS "UserID", 
+                    fullname AS "FullName", 
+                    username AS "Username", 
+                    role AS "Role", 
+                    area AS "Area" 
                  FROM "Users"
                  ORDER BY userid
                  OFFSET $1 LIMIT $2`,
