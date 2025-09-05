@@ -119,13 +119,22 @@ const TicketDetailPage = () => {
             setOnlineUsers(usersInRoom);
         };
 
+        const handleTicketUpdate = ({ ticketId: updatedTicketId }) => {
+            if (String(updatedTicketId) === String(id)) {
+                console.log(`[PARENT] Ticket ${id} updated, refetching...`);
+                fetchTicket();
+            }
+        };
+
         socket.on('roomUsersUpdate', handleRoomUsersUpdate);
+        socket.on('ticketUpdated', handleTicketUpdate);
 
         return () => {
             leaveTicketRoom();
             socket.off('connect', onConnect);
             socket.off('disconnect', onDisconnect);
             socket.off('roomUsersUpdate', handleRoomUsersUpdate);
+            socket.off('ticketUpdated', handleTicketUpdate);
         };
     }, [id, ticket, user, isJoinedToRoom]);
 

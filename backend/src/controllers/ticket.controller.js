@@ -34,10 +34,10 @@ exports.getTickets = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
-    const searchTerm = req.query.searchterm || '';
+    const searchTerm = req.query.searchTerm || ''; // FIX: Changed to camelCase
     const status = req.query.status || 'Todos';
-    const dateFrom = req.query.datefrom;
-    const dateTo = req.query.dateto;
+    const dateFrom = req.query.dateFrom; // FIX: Changed to camelCase
+    let dateTo = req.query.dateTo; // FIX: Changed to camelCase
 
     try {
         const pool = await getConnection();
@@ -53,31 +53,33 @@ exports.getTickets = async (req, res) => {
         let conditions = [];
 
         if (userArea === 'Personal Operativo') {
-            conditions.push(`createdbyuserid = $${paramIndex++}`);
+            conditions.push(`t.createdbyuserid = ${paramIndex++}`);
             whereParams.push(userId);
         } else {
-            conditions.push(`(assignedtoarea = $${paramIndex++} OR createdbyuserid = $${paramIndex++})`);
+            conditions.push(`(t.assignedtoarea = ${paramIndex++} OR t.createdbyuserid = ${paramIndex++})`);
             whereParams.push(userArea, userId);
         }
 
         if (searchTerm) {
-            conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+            conditions.push(`(t.title ILIKE ${paramIndex} OR t.description ILIKE ${paramIndex})`);
             whereParams.push(`%${searchTerm}%`);
             paramIndex++;
         }
 
         if (status && status !== 'Todos') {
-            conditions.push(`status = $${paramIndex++}`);
+            conditions.push(`t.status = ${paramIndex++}`);
             whereParams.push(status);
         }
 
         if (dateFrom) {
-            conditions.push(`createdat >= $${paramIndex++}`);
+            conditions.push(`t.createdat >= ${paramIndex++}`);
             whereParams.push(dateFrom);
         }
         if (dateTo) {
-            conditions.push(`createdat < $${paramIndex++}`);
-            whereParams.push(dateTo);
+            const nextDay = new Date(dateTo);
+            nextDay.setDate(nextDay.getDate() + 1);
+            conditions.push(`t.createdat < ${paramIndex++}`);
+            whereParams.push(nextDay.toISOString().split('T')[0]); // Format as YYYY-MM-DD
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -88,7 +90,7 @@ exports.getTickets = async (req, res) => {
         const totalPages = Math.ceil(totalTickets / limit);
 
         const ticketsParams = [userId, ...whereParams, offset, limit];
-        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 1}`);
+        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `${parseInt(n) + 1}`);
         
         const offsetLimitIndex = whereParams.length + 2;
 
@@ -111,7 +113,7 @@ exports.getTickets = async (req, res) => {
             JOIN "Users" u ON t.createdbyuserid = u.userid
             ${ticketsWhereClause}
             ORDER BY t.createdat DESC
-            OFFSET $${offsetLimitIndex} LIMIT $${offsetLimitIndex + 1}
+            OFFSET ${offsetLimitIndex} LIMIT ${offsetLimitIndex + 1}
         `;
         
         const ticketsResult = await pool.query(ticketsQuery, ticketsParams);
@@ -213,6 +215,10 @@ exports.updateTicketStatus = async (req, res) => {
         params.push(ticketid);
 
         await pool.query(query, params);
+
+        // Emit event to notify clients
+        const roomName = String(ticketid);
+        req.io.to(roomName).emit('ticketUpdated', { ticketId: ticketid });
 
         res.json({ msg: 'Estado del ticket actualizado.' });
     } catch (error) {
@@ -379,6 +385,10 @@ exports.updateTicket = async (req, res) => {
             WHERE ticketid = $3
         `, [title, description, ticketid]);
 
+        // Emit event to notify clients
+        const roomName = String(ticketid);
+        req.io.to(roomName).emit('ticketUpdated', { ticketId: ticketid });
+
         res.json({ msg: 'Ticket actualizado correctamente.' });
     } catch (error) {
         console.error(error);
@@ -414,6 +424,10 @@ exports.cancelTicket = async (req, res) => {
             SET status = 'Cancelado', updatedat = NOW()
             WHERE ticketid = $1
         `, [ticketid]);
+
+        // Emit event to notify clients
+        const roomName = String(ticketid);
+        req.io.to(roomName).emit('ticketUpdated', { ticketId: ticketid });
 
         res.json({ msg: 'Ticket cancelado exitosamente.' });
     } catch (error) {

@@ -348,6 +348,7 @@ const TicketListPage = () => {
                                     <option value="En Revisión" className="bg-slate-800">En Revisión</option>
                                     <option value="Resuelto" className="bg-slate-800">Resuelto</option>
                                     <option value="Cerrado" className="bg-slate-800">Cerrado</option>
+                                    <option value="Cancelado" className="bg-slate-800">Cancelado</option>
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400 pointer-events-none"/>
                             </div>
