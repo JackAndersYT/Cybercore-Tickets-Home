@@ -53,32 +53,32 @@ exports.getTickets = async (req, res) => {
         let conditions = [];
 
         if (userArea === 'Personal Operativo') {
-            conditions.push(`t.createdbyuserid = ${paramIndex++}`);
+            conditions.push(`createdbyuserid = ${paramIndex++}`);
             whereParams.push(userId);
         } else {
-            conditions.push(`(t.assignedtoarea = ${paramIndex++} OR t.createdbyuserid = ${paramIndex++})`);
+            conditions.push(`(assignedtoarea = ${paramIndex++} OR createdbyuserid = ${paramIndex++})`);
             whereParams.push(userArea, userId);
         }
 
         if (searchTerm) {
-            conditions.push(`(t.title ILIKE ${paramIndex} OR t.description ILIKE ${paramIndex})`);
+            conditions.push(`(title ILIKE ${paramIndex} OR description ILIKE ${paramIndex})`);
             whereParams.push(`%${searchTerm}%`);
             paramIndex++;
         }
 
         if (status && status !== 'Todos') {
-            conditions.push(`t.status = ${paramIndex++}`);
+            conditions.push(`status = ${paramIndex++}`);
             whereParams.push(status);
         }
 
         if (dateFrom) {
-            conditions.push(`t.createdat >= ${paramIndex++}`);
+            conditions.push(`createdat >= ${paramIndex++}`);
             whereParams.push(dateFrom);
         }
         if (dateTo) {
             const nextDay = new Date(dateTo);
             nextDay.setDate(nextDay.getDate() + 1);
-            conditions.push(`t.createdat < ${paramIndex++}`);
+            conditions.push(`createdat < ${paramIndex++}`);
             whereParams.push(nextDay.toISOString().split('T')[0]); // Format as YYYY-MM-DD
         }
 
