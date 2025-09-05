@@ -255,7 +255,7 @@ exports.getTicketMessages = async (req, res) => {
 // Agregar mensaje a un ticket
 exports.addTicketMessage = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const senderid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const senderid = parseInt(req.user.UserID, 10);
     const messagetext = req.body.messagetext || '';
     const file = req.file;
 
@@ -283,28 +283,30 @@ exports.addTicketMessage = async (req, res) => {
                 filetype AS "FileType"
         `, [ticketid, senderid, messagetext || null, filename, fileurl, filetype]);
 
-        const newMessage = insertResult.rows[0]; // This will now have PascalCase properties
+        const newMessage = insertResult.rows[0];
 
-        const userResult = await pool.query(`SELECT fullname AS "FullName" FROM "Users" WHERE userid = $1`, [senderid]); // Alias fullname here too
+        const userResult = await pool.query(`SELECT fullname AS "FullName" FROM "Users" WHERE userid = $1`, [senderid]);
 
         const fullMessage = {
             ...newMessage,
-            SenderFullName: userResult.rows[0].FullName // Use PascalCase
+            SenderFullName: userResult.rows[0].FullName
         };
-        console.log('Emitting newMessage:', fullMessage);
-        req.io.to(ticketid).emit('newMessage', fullMessage);
+
+        const roomName = String(ticketid);
+        console.log(`Emitting 'newMessage' to room ${roomName}:`, fullMessage);
+        req.io.to(roomName).emit('newMessage', fullMessage);
 
         const ticketResult = await pool.query(`SELECT title, createdbyuserid FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
 
         req.io.emit('ticketUpdate', {
             ticketId: ticketid,
             title: ticketResult.rows[0].title,
-            senderName: fullMessage.senderfullname,
+            senderName: fullMessage.SenderFullName,
             senderId: senderid,
             recipientId: ticketResult.rows[0].createdbyuserid
         });
 
-        res.status(201).json(newMessage);
+        res.status(201).json(fullMessage); // Send the full message back to the sender
     } catch (error) {
         console.error(error);
         res.status(500).send('Error al enviar el mensaje.');
@@ -314,7 +316,7 @@ exports.addTicketMessage = async (req, res) => {
 // Marcar mensajes como leídos
 exports.markMessagesAsRead = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
+    const userid = parseInt(req.user.UserID, 10);
 
     try {
         const pool = await getConnection();
@@ -324,7 +326,8 @@ exports.markMessagesAsRead = async (req, res) => {
             WHERE ticketid = $1 AND senderid != $2 AND isread = false
         `, [ticketid, userid]);
 
-        req.io.to(ticketid).emit('messagesRead', { readerId: userid });
+        const roomName = String(ticketid);
+        req.io.to(roomName).emit('messagesRead', { readerId: userid });
 
         res.status(200).json({ msg: 'Mensajes marcados como leídos.' });
     } catch (error) {

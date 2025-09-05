@@ -129,6 +129,7 @@ const TicketChat = ({
     };
 
     useEffect(() => {
+        const roomName = String(ticketId);
         const loadAndMarkMessages = async () => {
             const data = await ticketService.getMessages(ticketId);
             setMessages(data);
@@ -145,15 +146,20 @@ const TicketChat = ({
         loadAndMarkMessages();
 
         if (!disableSocketManagement) {
+            const joinRoom = () => {
+                socket.emit('joinTicketRoom', { ticketId: roomName, user });
+            };
+
             if (!socket.connected) {
                 socket.connect();
+                socket.once('connect', joinRoom);
             } else {
-                socket.emit('joinTicketRoom', { ticketId, user });
+                joinRoom();
             }
 
             const onConnect = () => {
                 setLocalIsConnected(true);
-                socket.emit('joinTicketRoom', { ticketId, user });
+                joinRoom();
             };
 
             const onDisconnect = () => {
@@ -168,13 +174,14 @@ const TicketChat = ({
             });
 
             return () => {
-                socket.emit('leaveTicketRoom', ticketId);
+                socket.emit('leaveTicketRoom', roomName);
                 socket.off('connect', onConnect);
                 socket.off('disconnect', onDisconnect);
                 socket.off('roomUsersUpdate');
+                socket.off('connect', joinRoom); // Clean up the 'once' listener
             };
         }
-    }, [ticketId, user.UserID, disableSocketManagement, user]);
+    }, [ticketId, user, disableSocketManagement]); // Updated dependencies
 
     useEffect(() => {
         const onNewMessage = (message) => {
@@ -221,10 +228,11 @@ const TicketChat = ({
     }, [messages, typingUser]);
 
     const handleTyping = () => {
-        socket.emit('typing', { ticketId, userName: user.FullName });
+        const roomName = String(ticketId);
+        socket.emit('typing', { ticketId: roomName, userName: user.FullName });
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
-            socket.emit('stopTyping', ticketId);
+            socket.emit('stopTyping', roomName);
         }, 2000);
     };
 
@@ -239,7 +247,7 @@ const TicketChat = ({
         if (newMessage.trim() === '' && !attachedFile) return;
 
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        socket.emit('stopTyping', ticketId);
+        socket.emit('stopTyping', String(ticketId));
 
         const formData = new FormData();
         formData.append('messagetext', newMessage);

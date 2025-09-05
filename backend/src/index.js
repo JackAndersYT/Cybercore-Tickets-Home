@@ -37,35 +37,40 @@ io.on('connection', (socket) => {
     console.log(`Usuario conectado: ${socket.id}`);
 
     socket.on('joinTicketRoom', ({ ticketId, user }) => {
-        socket.join(ticketId);
-        if (!ticketRooms[ticketId]) ticketRooms[ticketId] = [];
-        if (!ticketRooms[ticketId].some(u => u.userId === user.UserID)) {
-            ticketRooms[ticketId].push({ userId: user.UserID, userName: user.FullName, socketId: socket.id });
+        const roomName = String(ticketId);
+        socket.join(roomName);
+        if (!ticketRooms[roomName]) ticketRooms[roomName] = [];
+        if (!ticketRooms[roomName].some(u => u.userId === user.UserID)) {
+            ticketRooms[roomName].push({ userId: user.UserID, userName: user.FullName, socketId: socket.id });
         }
-        io.to(ticketId).emit('roomUsersUpdate', ticketRooms[ticketId]);
+        io.to(roomName).emit('roomUsersUpdate', ticketRooms[roomName]);
     });
 
     socket.on('leaveTicketRoom', (ticketId) => {
-        socket.leave(ticketId);
-        if (ticketRooms[ticketId]) {
-            ticketRooms[ticketId] = ticketRooms[ticketId].filter(u => u.socketId !== socket.id);
-            io.to(ticketId).emit('roomUsersUpdate', ticketRooms[ticketId]);
+        const roomName = String(ticketId);
+        socket.leave(roomName);
+        if (ticketRooms[roomName]) {
+            ticketRooms[roomName] = ticketRooms[roomName].filter(u => u.socketId !== socket.id);
+            io.to(roomName).emit('roomUsersUpdate', ticketRooms[roomName]);
         }
     });
 
     socket.on('typing', ({ ticketId, userName }) => {
-        socket.to(ticketId).emit('userTyping', { userName });
+        const roomName = String(ticketId);
+        socket.to(roomName).emit('userTyping', { userName });
     });
 
     socket.on('stopTyping', (ticketId) => {
-        socket.to(ticketId).emit('userStoppedTyping');
+        const roomName = String(ticketId);
+        socket.to(roomName).emit('userStoppedTyping');
     });
 
     socket.on('disconnect', () => {
         console.log(`Usuario desconectado: ${socket.id}`);
         for (const ticketId in ticketRooms) {
-            ticketRooms[ticketId] = ticketRooms[ticketId].filter(u => u.socketId !== socket.id);
-            io.to(ticketId).emit('roomUsersUpdate', ticketRooms[ticketId]);
+            const roomName = String(ticketId);
+            ticketRooms[roomName] = ticketRooms[roomName].filter(u => u.socketId !== socket.id);
+            io.to(roomName).emit('roomUsersUpdate', ticketRooms[roomName]);
         }
     });
 });
