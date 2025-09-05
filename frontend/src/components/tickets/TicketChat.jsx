@@ -23,6 +23,7 @@ const TicketChat = ({
     disableSocketManagement = false
 }) => {
     const chatContainerRef = useRef(null);
+    const optimisticMessageIds = useRef(new Set());
     const { user } = useContext(AuthContext);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
@@ -186,7 +187,12 @@ const TicketChat = ({
     useEffect(() => {
         const onNewMessage = (message) => {
             setTypingUser(null);
-            // Evita agregar un mensaje duplicado que el remitente ya agregó optimísticamente
+
+            if (optimisticMessageIds.current.has(message.MessageID)) {
+                optimisticMessageIds.current.delete(message.MessageID);
+                return;
+            }
+
             setMessages(prevMessages => {
                 if (prevMessages.some(m => m.MessageID === message.MessageID)) {
                     return prevMessages;
@@ -255,22 +261,20 @@ const TicketChat = ({
             formData.append('file', attachedFile);
         }
 
-        // Limpiar el input inmediatamente para una mejor UX
         const currentNewMessage = newMessage;
         const currentAttachedFile = attachedFile;
         setNewMessage('');
         setAttachedFile(null);
 
         try {
-            // El backend debería devolver el mensaje creado, incluyendo todos los campos necesarios.
             const sentMessage = await ticketService.addMessage(ticketId, formData);
             
-            // Actualización optimista: agregar el mensaje a la lista local
+            optimisticMessageIds.current.add(sentMessage.MessageID);
+            
             setMessages(prevMessages => [...prevMessages, sentMessage]);
 
         } catch (error) {
             console.error("Error al enviar mensaje:", error);
-            // Opcional: Revertir el estado si el envío falla
             setNewMessage(currentNewMessage);
             setAttachedFile(currentAttachedFile);
         }
