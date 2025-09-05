@@ -179,7 +179,14 @@ const TicketChat = ({
     useEffect(() => {
         const onNewMessage = (message) => {
             setTypingUser(null);
-            setMessages(prevMessages => [...prevMessages, message]);
+            // Evita agregar un mensaje duplicado que el remitente ya agregó optimísticamente
+            setMessages(prevMessages => {
+                if (prevMessages.some(m => m.MessageID === message.MessageID)) {
+                    return prevMessages;
+                }
+                return [...prevMessages, message];
+            });
+
             if (message.SenderID !== user.UserID) {
                 ticketService.markAsRead(ticketId);
             }
@@ -235,17 +242,29 @@ const TicketChat = ({
         socket.emit('stopTyping', ticketId);
 
         const formData = new FormData();
-        formData.append('messagetext', newMessage); // Changed from 'messageText' to 'messagetext'
+        formData.append('messagetext', newMessage);
         if (attachedFile) {
             formData.append('file', attachedFile);
         }
 
+        // Limpiar el input inmediatamente para una mejor UX
+        const currentNewMessage = newMessage;
+        const currentAttachedFile = attachedFile;
+        setNewMessage('');
+        setAttachedFile(null);
+
         try {
-            await ticketService.addMessage(ticketId, formData);
-            setNewMessage('');
-            setAttachedFile(null);
+            // El backend debería devolver el mensaje creado, incluyendo todos los campos necesarios.
+            const sentMessage = await ticketService.addMessage(ticketId, formData);
+            
+            // Actualización optimista: agregar el mensaje a la lista local
+            setMessages(prevMessages => [...prevMessages, sentMessage]);
+
         } catch (error) {
             console.error("Error al enviar mensaje:", error);
+            // Opcional: Revertir el estado si el envío falla
+            setNewMessage(currentNewMessage);
+            setAttachedFile(currentAttachedFile);
         }
     };
 
