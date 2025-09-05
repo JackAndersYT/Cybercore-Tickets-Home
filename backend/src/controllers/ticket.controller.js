@@ -258,6 +258,7 @@ exports.addTicketMessage = async (req, res) => {
     const senderid = parseInt(req.user.UserID, 10);
     const messagetext = req.body.messagetext || '';
     const file = req.file;
+    const socketId = req.query.socketId; // Get socketId from query
 
     if (!messagetext && !file) return res.status(400).json({ msg: 'El mensaje no puede estar vacío.' });
 
@@ -293,8 +294,15 @@ exports.addTicketMessage = async (req, res) => {
         };
 
         const roomName = String(ticketid);
-        console.log(`Emitting 'newMessage' to room ${roomName}:`, fullMessage);
-        req.io.to(roomName).emit('newMessage', fullMessage);
+        const senderSocket = req.io.sockets.sockets.get(socketId);
+
+        if (senderSocket) {
+            // Broadcast to all clients in the room except the sender
+            senderSocket.broadcast.to(roomName).emit('newMessage', fullMessage);
+        } else {
+            // Fallback to emit to everyone in the room if the sender's socket is not found
+            req.io.to(roomName).emit('newMessage', fullMessage);
+        }
 
         const ticketResult = await pool.query(`SELECT title, createdbyuserid FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
 
@@ -306,7 +314,7 @@ exports.addTicketMessage = async (req, res) => {
             recipientId: ticketResult.rows[0].createdbyuserid
         });
 
-        res.status(201).json(fullMessage); // Send the full message back to the sender
+        res.status(201).json(fullMessage);
     } catch (error) {
         console.error(error);
         res.status(500).send('Error al enviar el mensaje.');

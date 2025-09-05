@@ -23,7 +23,6 @@ const TicketChat = ({
     disableSocketManagement = false
 }) => {
     const chatContainerRef = useRef(null);
-    const optimisticMessageIds = useRef(new Set());
     const { user } = useContext(AuthContext);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
@@ -187,12 +186,6 @@ const TicketChat = ({
     useEffect(() => {
         const onNewMessage = (message) => {
             setTypingUser(null);
-
-            if (optimisticMessageIds.current.has(message.MessageID)) {
-                optimisticMessageIds.current.delete(message.MessageID);
-                return;
-            }
-
             setMessages(prevMessages => {
                 if (prevMessages.some(m => m.MessageID === message.MessageID)) {
                     return prevMessages;
@@ -267,9 +260,7 @@ const TicketChat = ({
         setAttachedFile(null);
 
         try {
-            const sentMessage = await ticketService.addMessage(ticketId, formData);
-            
-            optimisticMessageIds.current.add(sentMessage.MessageID);
+            const sentMessage = await ticketService.addMessage(ticketId, formData, socket.id);
             
             setMessages(prevMessages => [...prevMessages, sentMessage]);
 

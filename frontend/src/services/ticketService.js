@@ -34,9 +34,12 @@ const getMessages = async (ticketId) => {
     return response.data;
 };
 
-const addMessage = async (ticketId, formData) => {
-    // Se elimina la cabecera 'Content-Type'. Axios y el navegador la gestionarán automáticamente.
-    const response = await api.post(`/tickets/${ticketId}/messages`, formData);
+const addMessage = async (ticketId, formData, socketId) => {
+    const response = await api.post(`/tickets/${ticketId}/messages?socketId=${socketId}`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
     return response.data;
 };
 const markAsRead = async (ticketId) => {
