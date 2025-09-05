@@ -15,6 +15,7 @@ import "yet-another-react-lightbox/plugins/thumbnails.css";
 
 const TicketChat = ({
     ticketId,
+    ticketStatus,
     isExpanded = false,
     className = '',
     style = {},
@@ -22,6 +23,7 @@ const TicketChat = ({
     isSocketConnected = false,
     disableSocketManagement = false
 }) => {
+    const isReadOnly = ticketStatus === 'Cancelado' || ticketStatus === 'Cerrado';
     const chatContainerRef = useRef(null);
     const { user } = useContext(AuthContext);
     const [messages, setMessages] = useState([]);
@@ -273,7 +275,7 @@ const TicketChat = ({
 
     const formatTime = (dateStr) => {
         const date = new Date(dateStr);
-        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
     };
 
     const formatDate = (dateStr) => {
@@ -437,13 +439,7 @@ const TicketChat = ({
                                                                 {msgIndex === group.messages.length - 1 && (
                                                                     <div className="flex items-center justify-end space-x-1 mt-1">
                                                                         <span className="text-xs text-gray-400">
-                                                                            {(() => {
-                                                            const timeMatch = msg.SentAt.match(/T(\d{2}):(\d{2})/);
-                                                            if (timeMatch) {
-                                                                return `${timeMatch[1]}:${timeMatch[2]}`;
-                                                            }
-                                                            return 'Hora no disponible';
-                                                        })()}
+                                                                            {formatTime(msg.SentAt)}
                                                                         </span>
                                                                         {group.isOwn && (
                                                                             <div className="flex items-center">
@@ -487,61 +483,71 @@ const TicketChat = ({
 
                     {/* Barra de entrada de mensaje */}
                     <div className="relative px-4 py-3 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 border-t border-cyan-400/20 flex-shrink-0">
-                        {attachedFile && (
-                            <div className="mb-2 p-2 bg-gray-800/50 rounded-lg flex items-center justify-between">
-                                <div className="flex items-center space-x-2 overflow-hidden">
-                                    {attachedFile.type.startsWith('image/') ? (
-                                        <img src={URL.createObjectURL(attachedFile)} alt="preview" className="w-10 h-10 rounded object-cover" />
-                                    ) : (
-                                        <FileIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
-                                    )}
-                                    <span className="text-sm text-gray-300 truncate">{attachedFile.name}</span>
-                                </div>
-                                <button
-                                    onClick={() => setAttachedFile(null)}
-                                    className="p-1 text-gray-400 hover:text-white transition-colors"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
+                        {isReadOnly ? (
+                            <div className="text-center py-2 text-sm text-slate-400 font-medium bg-slate-800/50 rounded-full">
+                                El chat está deshabilitado para tickets en estado "{ticketStatus}".
                             </div>
+                        ) : (
+                            <>
+                                {attachedFile && (
+                                    <div className="mb-2 p-2 bg-gray-800/50 rounded-lg flex items-center justify-between">
+                                        <div className="flex items-center space-x-2 overflow-hidden">
+                                            {attachedFile.type.startsWith('image/') ? (
+                                                <img src={URL.createObjectURL(attachedFile)} alt="preview" className="w-10 h-10 rounded object-cover" />
+                                            ) : (
+                                                <FileIcon className="w-8 h-8 text-cyan-400 flex-shrink-0" />
+                                            )}
+                                            <span className="text-sm text-gray-300 truncate">{attachedFile.name}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setAttachedFile(null)}
+                                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" disabled={isReadOnly} />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current.click()}
+                                        className="p-2.5 text-gray-400 hover:text-cyan-400 transition-colors"
+                                        disabled={isReadOnly}
+                                    >
+                                        <Paperclip className="w-5 h-5" />
+                                    </button>
+
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            value={newMessage}
+                                            onChange={(e) => {
+                                                setNewMessage(e.target.value);
+                                                handleTyping();
+                                            }}
+                                            placeholder={isReadOnly ? "Chat deshabilitado" : "Escribe un mensaje..."}
+                                            className="w-full px-4 py-2.5 bg-gray-800/70 backdrop-blur-sm border border-cyan-400/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400/40 focus:bg-gray-800/90 transition-all duration-200 text-sm"
+                                            disabled={isReadOnly}
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isReadOnly || (!newMessage.trim() && !attachedFile)}
+                                        className={`p-2.5 rounded-full transition-all duration-200 ${
+                                            !isReadOnly && (newMessage.trim() || attachedFile)
+                                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25 transform hover:scale-105'
+                                                : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        <SendHorizontal className="w-5 h-5" />
+                                    </button>
+                                </form>
+                            </>
                         )}
-
-                        <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-                            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current.click()}
-                                className="p-2.5 text-gray-400 hover:text-cyan-400 transition-colors"
-                            >
-                                <Paperclip className="w-5 h-5" />
-                            </button>
-
-                            <div className="relative flex-1">
-                                <input
-                                    type="text"
-                                    value={newMessage}
-                                    onChange={(e) => {
-                                        setNewMessage(e.target.value);
-                                        handleTyping();
-                                    }}
-                                    placeholder="Escribe un mensaje..."
-                                    className="w-full px-4 py-2.5 bg-gray-800/70 backdrop-blur-sm border border-cyan-400/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400/40 focus:bg-gray-800/90 transition-all duration-200 text-sm"
-                                />
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={!newMessage.trim() && !attachedFile}
-                                className={`p-2.5 rounded-full transition-all duration-200 ${
-                                    newMessage.trim() || attachedFile
-                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:shadow-lg hover:shadow-cyan-500/25 transform hover:scale-105'
-                                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                                }`}
-                            >
-                                <SendHorizontal className="w-5 h-5" />
-                            </button>
-                        </form>
                     </div>
                 </div>
             </div>

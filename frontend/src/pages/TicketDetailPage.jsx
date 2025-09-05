@@ -317,6 +317,7 @@ const TicketDetailPage = () => {
             <div className="relative flex-1 min-h-0 w-full overflow-hidden">
                 <TicketChat 
                     ticketId={id} 
+                    ticketStatus={ticket.Status}
                     isExpanded={true}
                     onlineUsers={onlineUsers}
                     isSocketConnected={isSocketConnected}
@@ -499,6 +500,7 @@ const TicketDetailPage = () => {
                                     // En desktop: mostrar chat completo
                                     <TicketChat 
                                         ticketId={id}
+                                        ticketStatus={ticket.Status}
                                         onlineUsers={onlineUsers}
                                         isSocketConnected={isSocketConnected}
                                         disableSocketManagement={true}
@@ -580,7 +582,7 @@ const TicketDetailPage = () => {
                         </div>
 
                         {/* Control de estado */}
-                        {canUpdateStatus && ticket.Status !== 'Cerrado' && (
+                        {canUpdateStatus && ticket.Status !== 'Cerrado' && ticket.Status !== 'Cancelado' && (
                             <div className="relative group flex-1">
                                 <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl blur-xl opacity-60 group-hover:opacity-80 transition-all duration-500"></div>
                                 <div className="relative bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-xl p-6 rounded-2xl border border-slate-600/30 hover:border-purple-400/40 transition-all duration-500">
