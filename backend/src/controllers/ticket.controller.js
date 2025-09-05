@@ -53,32 +53,32 @@ exports.getTickets = async (req, res) => {
         let conditions = [];
 
         if (userArea === 'Personal Operativo') {
-            conditions.push(`createdbyuserid = ${paramIndex++}`);
+            conditions.push(`createdbyuserid = $${paramIndex++}`);
             whereParams.push(userId);
         } else {
-            conditions.push(`(assignedtoarea = ${paramIndex++} OR createdbyuserid = ${paramIndex++})`);
+            conditions.push(`(assignedtoarea = $${paramIndex++} OR createdbyuserid = $${paramIndex++})`);
             whereParams.push(userArea, userId);
         }
 
         if (searchTerm) {
-            conditions.push(`(title ILIKE ${paramIndex} OR description ILIKE ${paramIndex})`);
+            conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
             whereParams.push(`%${searchTerm}%`);
             paramIndex++;
         }
 
         if (status && status !== 'Todos') {
-            conditions.push(`status = ${paramIndex++}`);
+            conditions.push(`status = $${paramIndex++}`);
             whereParams.push(status);
         }
 
         if (dateFrom) {
-            conditions.push(`createdat >= ${paramIndex++}`);
+            conditions.push(`createdat >= $${paramIndex++}`);
             whereParams.push(dateFrom);
         }
         if (dateTo) {
             const nextDay = new Date(dateTo);
             nextDay.setDate(nextDay.getDate() + 1);
-            conditions.push(`createdat < ${paramIndex++}`);
+            conditions.push(`createdat < $${paramIndex++}`);
             whereParams.push(nextDay.toISOString().split('T')[0]); // Format as YYYY-MM-DD
         }
 
@@ -90,7 +90,7 @@ exports.getTickets = async (req, res) => {
         const totalPages = Math.ceil(totalTickets / limit);
 
         const ticketsParams = [userId, ...whereParams, offset, limit];
-        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `${parseInt(n) + 1}`);
+        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 1}`);
         
         const offsetLimitIndex = whereParams.length + 2;
 
@@ -113,7 +113,7 @@ exports.getTickets = async (req, res) => {
             JOIN "Users" u ON t.createdbyuserid = u.userid
             ${ticketsWhereClause}
             ORDER BY t.createdat DESC
-            OFFSET ${offsetLimitIndex} LIMIT ${offsetLimitIndex + 1}
+            OFFSET $${offsetLimitIndex} LIMIT $${offsetLimitIndex + 1}
         `;
         
         const ticketsResult = await pool.query(ticketsQuery, ticketsParams);
