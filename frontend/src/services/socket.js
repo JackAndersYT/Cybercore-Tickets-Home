@@ -1,7 +1,10 @@
 import { io } from 'socket.io-client';
-import { API_BASE_URL } from '../config'; // 1. Importar la URL base
+import { API_BASE_URL } from '../config';
 
-// 2. Usar la variable importada para la URL del socket
-const socket = io(API_BASE_URL, { autoConnect: false });
+// Explicitly specify WebSocket transport and disable polling
+const socket = io(API_BASE_URL, {
+  autoConnect: false,
+  transports: ['websocket'],
+});
 
 export default socket;
