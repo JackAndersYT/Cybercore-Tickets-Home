@@ -101,6 +101,17 @@ exports.getAllUsers = async (req, res) => {
     try {
         const pool = await getConnection();
 
+        let countQuery = 'SELECT COUNT(*) as totalUsers FROM "Users"';
+        let dataQuery = `
+            SELECT 
+                userid AS "UserID", 
+                fullname AS "FullName", 
+                username AS "Username", 
+                role AS "Role", 
+                area AS "Area" 
+            FROM "Users"
+        `;
+
         const whereConditions = [];
         const queryParams = [];
         let paramIndex = 1;
@@ -111,36 +122,30 @@ exports.getAllUsers = async (req, res) => {
             paramIndex++;
         }
         if (role && role !== 'Todos') {
-            whereConditions.push(`role = ${paramIndex++}`);
+            whereConditions.push(`role = ${paramIndex}`);
             queryParams.push(role);
+            paramIndex++;
         }
         if (area && area !== 'Todos') {
-            whereConditions.push(`area = ${paramIndex++}`);
+            whereConditions.push(`area = ${paramIndex}`);
             queryParams.push(area);
+            paramIndex++;
         }
 
-        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+        if (whereConditions.length > 0) {
+            const whereClause = ` WHERE ${whereConditions.join(' AND ')}`;
+            countQuery += whereClause;
+            dataQuery += whereClause;
+        }
 
-        // Query para contar el total de usuarios con los filtros aplicados
-        const countQuery = `SELECT COUNT(*) as totalusers FROM "Users" ${whereClause}`;
+        // Get total count for pagination
         const countResult = await pool.query(countQuery, queryParams);
         const totalUsers = parseInt(countResult.rows[0].totalusers, 10);
         const totalPages = Math.ceil(totalUsers / limit);
 
-        // Query para obtener los usuarios con filtros, paginación y orden
+        // Get user data for the current page
+        dataQuery += ` ORDER BY userid OFFSET ${paramIndex} LIMIT ${paramIndex + 1}`;
         const dataParams = [...queryParams, offset, limit];
-        const dataQuery = `
-            SELECT 
-                userid AS "UserID", 
-                fullname AS "FullName", 
-                username AS "Username", 
-                role AS "Role", 
-                area AS "Area" 
-            FROM "Users"
-            ${whereClause}
-            ORDER BY userid
-            OFFSET ${paramIndex} LIMIT ${paramIndex + 1}`;
-        
         const usersResult = await pool.query(dataQuery, dataParams);
 
         res.json({
