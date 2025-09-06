@@ -481,73 +481,118 @@ const TicketListPage = () => {
 
             {/* Paginación rediseñada - estilo MainLayout */}
             {totalPages > 1 && (
-                <div className="relative group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-3xl backdrop-blur-xl"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/5 to-purple-400/5 rounded-3xl"></div>
-                    <div className="absolute inset-0 border border-slate-600/30 rounded-3xl group-hover:border-cyan-400/40 transition-colors duration-500"></div>
-                    
-                    <div className="relative p-6">
-                        <div className="flex items-center justify-between">
-                            {/* Botón anterior */}
                             <div className="relative group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-blue-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className="relative flex items-center space-x-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-600/40 hover:border-cyan-400/40 rounded-xl text-slate-300 hover:text-cyan-300 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <ArrowLeft className="w-5 h-5" />
-                                    <span className="hidden sm:inline">Anterior</span>
-                                </button>
-                            </div>
-
-                            {/* Información central */}
-                            <div className="flex items-center space-x-6">
-                                <div className="text-center">
-                                    <div className="text-lg font-bold text-cyan-400 font-mono">
-                                        {currentPage} de {totalPages}
-                                    </div>
-                                    <div className="text-xs text-slate-500 uppercase tracking-wider">
-                                        Páginas
-                                    </div>
-                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-br from-slate-800/40 to-slate-900/40 rounded-3xl backdrop-blur-xl"></div>
+                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/5 to-purple-400/5 rounded-3xl"></div>
+                                <div className="absolute inset-0 border border-slate-600/30 rounded-3xl group-hover:border-cyan-400/40 transition-colors duration-500"></div>
                                 
-                                {/* Indicadores de página */}
-                                <div className="hidden md:flex items-center space-x-2">
-                                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                                        const page = i + 1;
-                                        const isActive = page === currentPage;
-                                        return (
-                                            <button
-                                                key={page}
-                                                onClick={() => handlePageChange(page)}
-                                                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                                                    isActive 
-                                                        ? 'bg-gradient-to-r from-cyan-400 to-purple-400 scale-125' 
-                                                        : 'bg-slate-600/50 hover:bg-slate-500/70'
-                                                }`}
-                                            />
-                                        );
-                                    })}
+                                <div className="relative p-6">
+                                    <div className="flex items-center justify-between">
+                                        {/* Botón anterior */}
+                                        <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="group/btn relative overflow-hidden p-4 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 text-cyan-300 rounded-xl hover:from-cyan-500/30 hover:to-blue-500/30 transition-all duration-500 transform hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/25 disabled:opacity-40 disabled:scale-100 disabled:cursor-not-allowed disabled:hover:shadow-none animate-fade-in-up border border-cyan-400/20 hover:border-cyan-400/40"
+                    style={{animationDelay: '0.1s'}}
+                >
+                    {/* Resplandor interior */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-blue-500/20 rounded-xl blur-xl opacity-0 group-hover/btn:opacity-100 transition-all duration-500"></div>
+                    
+                    {/* Efecto de ondas */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/20 to-cyan-400/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000"></div>
+                    
+                    <div className="relative flex items-center space-x-2">
+                        <ArrowLeft className="w-5 h-5 transform group-hover/btn:-translate-x-1 transition-transform duration-300" />
+                        <span className="hidden sm:inline text-sm font-medium">Anterior</span>
+                    </div>
+                </button>
+            
+                                        {/* Información central */}
+                                        <div className="flex items-center space-x-6">
+                                            <div className="text-center">
+                                                <div className="text-lg font-bold text-cyan-400 font-mono">
+                                                    {currentPage} de {totalPages}
+                                                </div>
+                                                <div className="text-xs text-slate-500 uppercase tracking-wider">
+                                                    Páginas
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Indicadores de página */}
+                                            <div className="hidden md:flex items-center space-x-2">
+                                                {Array.from({ length: Math.min(totalPages, 6) }, (_, i) => {
+                                                    let page;
+
+                                                    if (totalPages <= 6) {
+                                                        page = i + 1;
+                                                    } else {
+                                                        if (currentPage <= 3) {
+                                                        page = i + 1;
+                                                        } else if (currentPage >= totalPages - 2) {
+                                                        page = totalPages - 5 + i;
+                                                        } else {
+                                                        page = currentPage - 2 + i;
+                                                        }
+                                                    }
+
+                                                    const isActive = page === currentPage;
+                                                    const isAdjacent = Math.abs(page - currentPage) === 1;
+
+
+                                                    return (
+                                                        <button
+                                                            key={page}
+                                                            onClick={() => handlePageChange(page)}
+                                                            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                                                isActive 
+                                                                    ? 'bg-gradient-to-r from-cyan-400 to-purple-400 scale-125' 
+                                                                    : 'bg-slate-600/50 hover:bg-slate-500/70'
+                                                            }`}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="hidden lg:flex items-center space-x-3 ml-4">
+                            <div className="relative">
+                                <Settings className="w-4 h-4 text-slate-400 animate-spin" style={{animationDuration: '8s'}} />
+                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-purple-400/20 rounded-full blur-md opacity-60 animate-pulse"></div>
+                            </div>
+                            <div className="w-20 h-2 bg-slate-700/50 rounded-full overflow-hidden border border-slate-600/30">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full transition-all duration-700 relative"
+                                    style={{width: `${(currentPage / totalPages) * 100}%`}}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/60 to-purple-400/60 animate-pulse blur-sm"></div>
                                 </div>
                             </div>
-
-                            {/* Botón siguiente */}
-                            <div className="relative group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-pink-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className="relative flex items-center space-x-2 px-4 py-2 bg-slate-800/60 hover:bg-slate-700/60 border border-slate-600/40 hover:border-purple-400/40 rounded-xl text-slate-300 hover:text-purple-300 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <span className="hidden sm:inline">Siguiente</span>
-                                    <ArrowRight className="w-5 h-5" />
-                                </button>
-                            </div>
+                            <span className="text-xs text-slate-400 font-mono bg-gradient-to-r from-slate-700/50 to-slate-600/50 px-2 py-1 rounded backdrop-blur-sm">
+                                {Math.round((currentPage / totalPages) * 100)}%
+                            </span>
                         </div>
+                                        </div>
+            
+                                        {/* Botón siguiente */}
+                                        <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="group/btn relative overflow-hidden p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-300 rounded-xl hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-500 transform hover:scale-110 hover:shadow-lg hover:shadow-purple-500/25 disabled:opacity-40 disabled:scale-100 disabled:cursor-not-allowed disabled:hover:shadow-none animate-fade-in-up border border-purple-400/20 hover:border-purple-400/40"
+                    style={{animationDelay: '0.1s'}}
+                >
+                    {/* Resplandor interior */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-xl blur-xl opacity-0 group-hover/btn:opacity-100 transition-all duration-500"></div>
+                    
+                    {/* Efecto de ondas */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-400/0 via-purple-400/20 to-purple-400/0 translate-x-[100%] group-hover/btn:translate-x-[-100%] transition-transform duration-1000"></div>
+                    
+                    <div className="relative flex items-center space-x-2">
+                        <span className="hidden sm:inline text-sm font-medium">Siguiente</span>
+                        <ArrowRight className="w-5 h-5 transform group-hover/btn:translate-x-1 transition-transform duration-300" />
                     </div>
-                </div>
-            )}
+                </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
             {/* Modal para registrar nuevo ticket - estilo mejorado */}
             <Modal isOpen={isRegisterModalOpen} onClose={handleCloseRegisterModal} title="Registrar Nuevo Ticket">

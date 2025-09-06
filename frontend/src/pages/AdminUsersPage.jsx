@@ -235,7 +235,7 @@ const AdminUsersPage = () => {
 
     
 
-    if (loading) {
+    if (loading && users.length === 0) {
         return (
             <div className="flex items-center justify-center min-h-96">
                 <div className="text-center space-y-6">
