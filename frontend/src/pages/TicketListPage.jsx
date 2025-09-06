@@ -5,7 +5,7 @@ import TicketCard from '../components/tickets/TicketCard';
 import { NotificationContext } from '../context/NotificationContext';
 import { AuthContext } from '../context/AuthContext';
 import Modal from '../components/ui/Modal';
-import { ArrowLeft, ArrowRight, Search, ChevronDown, RotateCcw, Filter, Ticket, Zap, Calendar, FileText, Plus, Users, CheckCircle, AlertCircle, Activity, Shield } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, ChevronDown, RotateCcw, Filter, Ticket, Zap, Calendar, FileText, Plus, Users, CheckCircle, AlertCircle, Activity, Shield,Settings } from 'lucide-react';
 
 const TicketListPage = () => {
     const { user } = useContext(AuthContext);
