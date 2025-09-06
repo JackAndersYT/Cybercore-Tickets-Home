@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import socket from '../services/socket'; // Import socket
 import ticketService from '../services/ticketService';
 import TicketCard from '../components/tickets/TicketCard';
 import { NotificationContext } from '../context/NotificationContext';
@@ -23,6 +24,7 @@ const TicketListPage = () => {
         dateTo: '',
     });
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    const [refreshKey, setRefreshKey] = useState(0); // State to trigger refresh
 
     // Estados para el modal de registro
     const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -56,7 +58,7 @@ const TicketListPage = () => {
         return () => clearTimeout(timerId);
     }, [filters.searchTerm]);
 
-    // Efecto principal que maneja tanto filtros como paginación
+    // Efecto principal que maneja filtros, paginación y refresco por socket
     useEffect(() => {
         const hasActiveFilters = debouncedSearchTerm !== '' || 
                                 filters.status !== 'Todos' || 
@@ -69,9 +71,25 @@ const TicketListPage = () => {
         }
         
         fetchTickets(currentPage, { ...filters, searchTerm: debouncedSearchTerm });
-    }, [debouncedSearchTerm, filters.status, filters.dateFrom, filters.dateTo, currentPage]);
+    }, [debouncedSearchTerm, filters.status, filters.dateFrom, filters.dateTo, currentPage, refreshKey]); // Added refreshKey
 
-    // Refrescar cuando hay notificaciones
+    // Efecto para escuchar eventos de socket
+    useEffect(() => {
+        const handleTicketCreated = (data) => {
+            // Refresh if the user is an admin or if the ticket is assigned to the user's area
+            if (user?.Role === 'Administrador' || (data.assignedToArea && user?.Area === data.assignedToArea)) {
+                setRefreshKey(prevKey => prevKey + 1);
+            }
+        };
+
+        socket.on('ticketCreated', handleTicketCreated);
+
+        return () => {
+            socket.off('ticketCreated', handleTicketCreated);
+        };
+    }, [user]); // Depend on user to access their role and area
+
+    // Refrescar cuando hay notificaciones (del NotificationContext)
     useEffect(() => {
         if (notification) {
             fetchTickets(currentPage, { ...filters, searchTerm: debouncedSearchTerm });
@@ -129,10 +147,12 @@ const TicketListPage = () => {
         setRegisterLoading(true);
 
         try {
-            const response = await ticketService.create(registerFormData);
+            await ticketService.create(registerFormData);
             handleCloseRegisterModal();
             setError('');
-            fetchTickets(currentPage, { ...filters, searchTerm: debouncedSearchTerm });
+            // Always refresh for the user who created the ticket.
+            // Others (admins, assigned area) will be updated via socket.
+            fetchTickets(1, { ...filters, searchTerm: debouncedSearchTerm });
         } catch (err) {
             const apiError = err.response?.data?.msg || 'Error al registrar el ticket.';
             setRegisterFormErrors({ form: apiError });

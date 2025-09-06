@@ -15,13 +15,21 @@ exports.createTicket = async (req, res) => {
 
     try {
         const pool = await getConnection();
-        await pool.query(
+        const result = await pool.query(
             `INSERT INTO "Tickets" (title, description, createdbyuserid, assignedtoarea) 
-             VALUES ($1, $2, $3, $4)`,
+             VALUES ($1, $2, $3, $4) RETURNING ticketid, assignedtoarea`,
             [title, description, createdbyuserid, assignedtoarea]
         );
 
-        res.status(201).json({ msg: 'Ticket creado exitosamente.' });
+        const newTicket = result.rows[0];
+
+        // Emit a global event with the area the ticket was assigned to
+        req.io.emit('ticketCreated', { 
+            ticketId: newTicket.ticketid,
+            assignedToArea: newTicket.assignedtoarea
+        });
+
+        res.status(201).json({ msg: 'Ticket creado exitosamente.', ticket: newTicket });
     } catch (error) {
         console.error(error);
         res.status(500).send('Error en el servidor al crear el ticket.');
