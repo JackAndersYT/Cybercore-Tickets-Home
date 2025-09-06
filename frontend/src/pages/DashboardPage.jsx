@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
+import socket from '../services/socket';
+import { AuthContext } from '../context/AuthContext';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { 
     Activity, 
@@ -18,10 +20,12 @@ import TicketCard from '../components/tickets/TicketCard';
 import { NotificationContext } from '../context/NotificationContext';
 
 const DashboardPage = () => {
+    const { user } = useContext(AuthContext);
     const [stats, setStats] = useState(null);
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const { notification } = useContext(NotificationContext);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     // --- CÓDIGO AÑADIDO PARA RESPONSIVIDAD DEL GRÁFICO ---
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -55,7 +59,27 @@ const DashboardPage = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [refreshKey]); // Depend on refreshKey
+
+    useEffect(() => {
+        const handleTicketCreated = (data) => {
+            if (user?.Role === 'Administrador' || (data.assignedToArea && user?.Area === data.assignedToArea)) {
+                setRefreshKey(prevKey => prevKey + 1);
+            }
+        };
+
+        const handleTicketUpdated = () => {
+            setRefreshKey(prevKey => prevKey + 1);
+        };
+
+        socket.on('ticketCreated', handleTicketCreated);
+        socket.on('ticketUpdated', handleTicketUpdated);
+
+        return () => {
+            socket.off('ticketCreated', handleTicketCreated);
+            socket.off('ticketUpdated', handleTicketUpdated);
+        };
+    }, [user]);
 
     useEffect(() => {
         if (notification) {

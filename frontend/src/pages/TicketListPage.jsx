@@ -76,16 +76,21 @@ const TicketListPage = () => {
     // Efecto para escuchar eventos de socket
     useEffect(() => {
         const handleTicketCreated = (data) => {
-            // Refresh if the user is an admin or if the ticket is assigned to the user's area
             if (user?.Role === 'Administrador' || (data.assignedToArea && user?.Area === data.assignedToArea)) {
                 setRefreshKey(prevKey => prevKey + 1);
             }
         };
 
+        const handleTicketUpdated = () => {
+            setRefreshKey(prevKey => prevKey + 1);
+        };
+
         socket.on('ticketCreated', handleTicketCreated);
+        socket.on('ticketUpdated', handleTicketUpdated);
 
         return () => {
             socket.off('ticketCreated', handleTicketCreated);
+            socket.off('ticketUpdated', handleTicketUpdated);
         };
     }, [user]); // Depend on user to access their role and area
 

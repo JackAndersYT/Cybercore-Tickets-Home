@@ -224,9 +224,12 @@ exports.updateTicketStatus = async (req, res) => {
 
         await pool.query(query, params);
 
-        // Emit event to notify clients
+        // Emit event to specific ticket room
         const roomName = String(ticketid);
         req.io.to(roomName).emit('ticketUpdated', { ticketId: ticketid });
+
+        // Emit global event for lists and dashboards
+        req.io.emit('ticketUpdated');
 
         res.json({ msg: 'Estado del ticket actualizado.' });
     } catch (error) {
@@ -393,9 +396,12 @@ exports.updateTicket = async (req, res) => {
             WHERE ticketid = $3
         `, [title, description, ticketid]);
 
-        // Emit event to notify clients
+        // Emit event to specific ticket room
         const roomName = String(ticketid);
         req.io.to(roomName).emit('ticketUpdated', { ticketId: ticketid });
+
+        // Emit global event for lists and dashboards
+        req.io.emit('ticketUpdated');
 
         res.json({ msg: 'Ticket actualizado correctamente.' });
     } catch (error) {
@@ -433,9 +439,12 @@ exports.cancelTicket = async (req, res) => {
             WHERE ticketid = $1
         `, [ticketid]);
 
-        // Emit event to notify clients
+        // Emit event to specific ticket room
         const roomName = String(ticketid);
         req.io.to(roomName).emit('ticketUpdated', { ticketId: ticketid });
+
+        // Emit global event for lists and dashboards
+        req.io.emit('ticketUpdated');
 
         res.json({ msg: 'Ticket cancelado exitosamente.' });
     } catch (error) {
