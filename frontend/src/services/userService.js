@@ -1,9 +1,9 @@
 import api from './api';
 
-const getAll = async (page = 1, limit = 6) => {
-    // Ahora pasamos los parámetros de página y límite a la API
+const getAll = async (page = 1, limit = 6, filters = {}) => {
+    const { searchTerm, role, area } = filters;
     const response = await api.get('/users', {
-        params: { page, limit }
+        params: { page, limit, searchTerm, role, area }
     });
     return response.data;
 };
