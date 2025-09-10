@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building, User, Lock, Mail, Activity } from 'lucide-react';
+import { Building, User, Lock, Mail, Activity, Eye, EyeOff } from 'lucide-react';
 
 const RegisterCompanyPage = () => {
     const [companyName, setCompanyName] = useState('');
