@@ -189,13 +189,56 @@ const RegisterCompanyPage = () => {
                                     <input
                                         id="adminPassword"
                                         name="adminPassword"
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         required
                                         value={adminPassword}
                                         onChange={(e) => setAdminPassword(e.target.value)}
-                                        className="relative w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
+                                        className="relative w-full px-4 py-3 pr-12 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
                                         placeholder="••••••••••••"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-slate-400 hover:text-cyan-300 transition-colors duration-200 hover:bg-slate-700/40 rounded-lg"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="w-4 h-4" />
+                                        ) : (
+                                            <Eye className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Confirm Password */}
+                            <div className="space-y-3">
+                                <label className="text-sm font-medium text-slate-300 flex items-center space-x-2">
+                                    <Lock className="w-4 h-4 text-cyan-400" />
+                                    <span>Confirmar Contraseña</span>
+                                </label>
+                                <div className="relative group">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-indigo-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+                                    <input
+                                        id="confirmPassword"
+                                        name="confirmPassword"
+                                        type={showPassword ? 'text' : 'password'}
+                                        required
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="relative w-full px-4 py-3 pr-12 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
+                                        placeholder="••••••••••••"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-slate-400 hover:text-cyan-300 transition-colors duration-200 hover:bg-slate-700/40 rounded-lg"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="w-4 h-4" />
+                                        ) : (
+                                            <Eye className="w-4 h-4" />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
 
