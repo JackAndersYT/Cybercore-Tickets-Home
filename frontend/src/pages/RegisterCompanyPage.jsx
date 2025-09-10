@@ -7,13 +7,23 @@ const RegisterCompanyPage = () => {
     const [adminFullName, setAdminFullName] = useState('');
     const [adminUsername, setAdminUsername] = useState('');
     const [adminPassword, setAdminPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setPasswordError('');
+        
+        if (adminPassword !== confirmPassword) {
+            setPasswordError('Las contraseñas no coinciden.');
+            return;
+        }
+
         setLoading(true);
         try {
             // Aquí irá la llamada a la API de backend para registrar la empresa
@@ -240,6 +250,7 @@ const RegisterCompanyPage = () => {
                                         )}
                                     </button>
                                 </div>
+                                {passwordError && <p className="text-sm text-red-400 mt-1">{passwordError}</p>}
                             </div>
 
                             {/* Submit Button */}
