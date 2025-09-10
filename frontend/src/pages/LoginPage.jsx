@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Link } from 'react-router-dom'; // Importar Link
-import { AuthContext } = useContext(AuthContext);
+import { AuthContext } from '../context/AuthContext';
 import authService from '../services/authService';
 import { Shield, Activity, Eye, EyeOff, Zap, Lock, User } from 'lucide-react';
 
