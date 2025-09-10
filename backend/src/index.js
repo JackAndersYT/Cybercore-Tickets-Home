@@ -30,6 +30,7 @@ app.use((req, res, next) => {
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/tickets', require('./routes/ticket.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
+app.use('/api/auth', require('./routes/auth.routes')); // Nueva ruta de autenticación
 
 const ticketRooms = {};
 

@@ -1,26 +1,36 @@
-import React, { useState, useContext } from 'react';
-import { Link } from 'react-router-dom'; // Importar Link
-import { AuthContext } = useContext(AuthContext);
-import authService from '../services/authService';
-import { Shield, Activity, Eye, EyeOff, Zap, Lock, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Building, User, Lock, Mail, Activity } from 'lucide-react';
 
-const LoginPage = () => {
-    const { login } = useContext(AuthContext);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
+const RegisterCompanyPage = () => {
+    const [companyName, setCompanyName] = useState('');
+    const [adminFullName, setAdminFullName] = useState('');
+    const [adminUsername, setAdminUsername] = useState('');
+    const [adminPassword, setAdminPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
-            const data = await authService.login(username, password);
-            login(data.token);
+            // Aquí irá la llamada a la API de backend para registrar la empresa
+            // const response = await api.post('/register-company', {
+            //     companyName,
+            //     adminFullName,
+            //     adminUsername,
+            //     adminPassword,
+            // });
+
+            // Simulación de éxito
+            console.log('Registro exitoso!', { companyName, adminFullName, adminUsername, adminPassword });
+            alert('Empresa y usuario administrador registrados con éxito!');
+            navigate('/login'); // Redirigir al login tras el registro
+
         } catch (err) {
-            setError(err.response?.data?.msg || 'Error al iniciar sesión. Inténtelo de nuevo.');
+            setError(err.response?.data?.msg || 'Error al registrar la empresa. Inténtelo de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -28,13 +38,13 @@ const LoginPage = () => {
 
     return (
         <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 min-h-screen flex items-center justify-center text-slate-200 p-4 relative overflow-hidden">
-            {/* Efectos de fondo globales - igual que MainLayout */}
+            {/* Background effects - similar to LoginPage */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-40 -left-40 w-80 h-80 bg-cyan-400/3 rounded-full blur-3xl animate-float"></div>
                 <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-400/3 rounded-full blur-3xl animate-float-delayed"></div>
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-400/2 rounded-full blur-3xl"></div>
                 
-                {/* Grid sutil */}
+                {/* Grid */}
                 <div className="absolute inset-0 opacity-[0.02]" 
                      style={{
                          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(99, 102, 241, 0.3) 1px, transparent 0)`,
@@ -43,7 +53,7 @@ const LoginPage = () => {
                 </div>
             </div>
 
-            {/* Partículas flotantes sutiles */}
+            {/* Floating particles */}
             <div className="absolute inset-0 pointer-events-none">
                 {[...Array(15)].map((_, i) => (
                     <div
@@ -60,9 +70,8 @@ const LoginPage = () => {
             </div>
 
             <div className="relative w-full max-w-md">
-                {/* Contenedor principal con glassmorphism */}
+                {/* Main container with glassmorphism */}
                 <div className="relative group">
-                    {/* Efectos de brillo de fondo */}
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/10 via-indigo-400/10 to-purple-400/10 rounded-3xl blur-xl opacity-60 group-hover:opacity-80 transition-all duration-500"></div>
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-900/90 rounded-3xl"></div>
                     <div className="absolute inset-0 backdrop-blur-xl rounded-3xl"></div>
@@ -70,41 +79,26 @@ const LoginPage = () => {
                     
                     <div className="relative p-10 space-y-8">
                         
-                        {/* Header mejorado - estilo MainLayout */}
+                        {/* Header */}
                         <div className="text-center space-y-6">
                             <div className="relative inline-block">
-                                {/* Efecto de brillo animado */}
                                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-indigo-500 rounded-xl blur-lg animate-pulse opacity-60"></div>
                                 <div className="relative w-16 h-16 bg-gradient-to-r from-cyan-400 to-indigo-500 rounded-xl flex items-center justify-center mx-auto">
-                                    <Shield className="w-8 h-8 text-slate-900" />
+                                    <Building className="w-8 h-8 text-slate-900" />
                                 </div>
                             </div>
                             
                             <div className="space-y-2">
                                 <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-wider">
-                                    CyberCore
+                                    Registrar Empresa
                                 </h1>
                                 <p className="text-sm text-slate-400 uppercase tracking-widest font-medium">
-                                    Support System
+                                    Crea tu cuenta de empresa
                                 </p>
-                                <div className="text-xs text-slate-500 tracking-wide">
-                                    Acceso al Sistema de Gestión Avanzada
-                                </div>
-                            </div>
-                            
-                            {/* Indicador de estado */}
-                            <div className="flex justify-center space-x-2">
-                                <div className="flex items-center space-x-2">
-                                    <div className="relative">
-                                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                                        <div className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-20"></div>
-                                    </div>
-                                    <span className="text-xs text-slate-400 uppercase tracking-wider">Sistema Online</span>
-                                </div>
                             </div>
                         </div>
 
-                        {/* Mensaje de Error con estilo mejorado */}
+                        {/* Error Message */}
                         {error && (
                             <div className="relative group">
                                 <div className="absolute inset-0 bg-gradient-to-r from-red-400/20 to-pink-400/20 rounded-xl blur-md"></div>
@@ -120,29 +114,71 @@ const LoginPage = () => {
                             </div>
                         )}
 
-                        <form className="space-y-6" onSubmit={handleLogin}>
-                            {/* Campo Usuario - estilo MainLayout */}
+                        <form className="space-y-6" onSubmit={handleSubmit}>
+                            {/* Company Name */}
                             <div className="space-y-3">
                                 <label className="text-sm font-medium text-slate-300 flex items-center space-x-2">
-                                    <User className="w-4 h-4 text-cyan-400" />
-                                    <span>Usuario</span>
+                                    <Building className="w-4 h-4 text-cyan-400" />
+                                    <span>Nombre de la Empresa</span>
                                 </label>
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-indigo-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
                                     <input
-                                        id="username"
-                                        name="username"
+                                        id="companyName"
+                                        name="companyName"
                                         type="text"
                                         required
-                                        value={username}
-                                        onChange={(e) => setUsername(e.target.value)}
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
                                         className="relative w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
-                                        placeholder="Ingresa tu usuario"
+                                        placeholder="Ej. Mi Gran Empresa S.A."
                                     />
                                 </div>
                             </div>
 
-                            {/* Campo Contraseña - estilo MainLayout */}
+                            {/* Admin Full Name */}
+                            <div className="space-y-3">
+                                <label className="text-sm font-medium text-slate-300 flex items-center space-x-2">
+                                    <User className="w-4 h-4 text-cyan-400" />
+                                    <span>Nombre Completo del Administrador</span>
+                                </label>
+                                <div className="relative group">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-indigo-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+                                    <input
+                                        id="adminFullName"
+                                        name="adminFullName"
+                                        type="text"
+                                        required
+                                        value={adminFullName}
+                                        onChange={(e) => setAdminFullName(e.target.value)}
+                                        className="relative w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
+                                        placeholder="Ej. Juan Pérez"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Admin Username */}
+                            <div className="space-y-3">
+                                <label className="text-sm font-medium text-slate-300 flex items-center space-x-2">
+                                    <Mail className="w-4 h-4 text-cyan-400" />
+                                    <span>Nombre de Usuario (Único)</span>
+                                </label>
+                                <div className="relative group">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-indigo-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+                                    <input
+                                        id="adminUsername"
+                                        name="adminUsername"
+                                        type="text"
+                                        required
+                                        value={adminUsername}
+                                        onChange={(e) => setAdminUsername(e.target.value)}
+                                        className="relative w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
+                                        placeholder="Ej. admin.miempresa"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Admin Password */}
                             <div className="space-y-3">
                                 <label className="text-sm font-medium text-slate-300 flex items-center space-x-2">
                                     <Lock className="w-4 h-4 text-cyan-400" />
@@ -151,30 +187,19 @@ const LoginPage = () => {
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/20 to-indigo-400/20 rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
                                     <input
-                                        id="password"
-                                        name="password"
-                                        type={showPassword ? 'text' : 'password'}
+                                        id="adminPassword"
+                                        name="adminPassword"
+                                        type="password"
                                         required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="relative w-full px-4 py-3 pr-12 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
+                                        value={adminPassword}
+                                        onChange={(e) => setAdminPassword(e.target.value)}
+                                        className="relative w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400/40 transition-all duration-300 hover:border-slate-500/60 hover:bg-slate-700/40"
                                         placeholder="••••••••••••"
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-slate-400 hover:text-cyan-300 transition-colors duration-200 hover:bg-slate-700/40 rounded-lg"
-                                    >
-                                        {showPassword ? (
-                                            <EyeOff className="w-4 h-4" />
-                                        ) : (
-                                            <Eye className="w-4 h-4" />
-                                        )}
-                                    </button>
                                 </div>
                             </div>
 
-                            {/* Botón de login - estilo MainLayout */}
+                            {/* Submit Button */}
                             <div className="pt-4">
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-indigo-500 rounded-xl blur-md opacity-60 group-hover:opacity-100 transition-all duration-300"></div>
@@ -193,7 +218,7 @@ const LoginPage = () => {
                                                 <Activity className="w-5 h-5" />
                                             )}
                                             <span className="tracking-wide font-medium">
-                                                {loading ? 'Conectando al Sistema...' : 'Acceder al Sistema'}
+                                                {loading ? 'Registrando...' : 'Registrar Empresa'}
                                             </span>
                                         </div>
                                     </button>
@@ -201,48 +226,18 @@ const LoginPage = () => {
                             </div>
                         </form>
 
-                        {/* Botón de Registro de Empresa */}
-                        <div className="pt-2">
-                            <div className="relative group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-500 rounded-xl blur-md opacity-60 group-hover:opacity-100 transition-all duration-300"></div>
-                                <Link
-                                    to="/register-company"
-                                    className="relative w-full py-4 px-6 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white font-bold rounded-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-60 disabled:scale-100 disabled:cursor-not-allowed border border-purple-400/20 hover:border-purple-400/40 shadow-lg shadow-purple-500/20 flex items-center justify-center space-x-3"
-                                >
-                                    <Activity className="w-5 h-5" />
-                                    <span className="tracking-wide font-medium">Registrar Nueva Empresa</span>
-                                </Link>
-                            </div>
+                        {/* Back to Login Link */}
+                        <div className="pt-6 text-center">
+                            <Link to="/login" className="text-sm text-slate-400 hover:text-cyan-400 transition-colors duration-200">
+                                ¿Ya tienes una cuenta? Inicia Sesión
+                            </Link>
                         </div>
 
-                        {/* Footer decorativo - estilo MainLayout */}
-                        <div className="pt-6 border-t border-slate-700/50">
-                            <div className="text-center space-y-3">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <Zap className="w-4 h-4 text-cyan-400 animate-pulse" />
-                                    <div className="text-xs text-slate-400 tracking-widest uppercase font-medium">
-                                        CyberCore v2.0
-                                    </div>
-                                </div>
-                                <div className="text-xs text-slate-500 tracking-wide">
-                                    Sistema Seguro • Acceso Autorizado
-                                </div>
-                                <div className="flex justify-center space-x-1">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className="w-1 h-1 bg-cyan-400/60 rounded-full animate-pulse"
-                                            style={{animationDelay: `${i * 0.2}s`}}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Estilos de animación personalizados - iguales al MainLayout */}
+            {/* Animation styles - similar to LoginPage */}
             <style jsx>{`
                 @keyframes float {
                     0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -269,4 +264,4 @@ const LoginPage = () => {
     );
 };
 
-export default LoginPage;
+export default RegisterCompanyPage;
