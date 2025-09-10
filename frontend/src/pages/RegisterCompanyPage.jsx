@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building, User, Lock, Mail, Activity, Eye, EyeOff } from 'lucide-react';
+import api from '../services/api';
 
 const RegisterCompanyPage = () => {
     const [companyName, setCompanyName] = useState('');
@@ -11,6 +12,7 @@ const RegisterCompanyPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [passwordError, setPasswordError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
@@ -18,6 +20,7 @@ const RegisterCompanyPage = () => {
         e.preventDefault();
         setError('');
         setPasswordError('');
+        setSuccessMessage('');
         
         if (adminPassword !== confirmPassword) {
             setPasswordError('Las contraseñas no coinciden.');
@@ -26,18 +29,15 @@ const RegisterCompanyPage = () => {
 
         setLoading(true);
         try {
-            // Aquí irá la llamada a la API de backend para registrar la empresa
-            // const response = await api.post('/register-company', {
-            //     companyName,
-            //     adminFullName,
-            //     adminUsername,
-            //     adminPassword,
-            // });
+            const response = await api.post('/register-company', {
+                companyName,
+                adminFullName,
+                adminUsername,
+                adminPassword,
+            });
 
-            // Simulación de éxito
-            console.log('Registro exitoso!', { companyName, adminFullName, adminUsername, adminPassword });
-            alert('Empresa y usuario administrador registrados con éxito!');
-            navigate('/login'); // Redirigir al login tras el registro
+            setSuccessMessage(response.data.msg || 'Empresa y usuario administrador registrados con éxito!');
+            // navigate('/login'); // Redirigir al login tras el registro - maybe after a delay or user action
 
         } catch (err) {
             setError(err.response?.data?.msg || 'Error al registrar la empresa. Inténtelo de nuevo.');
@@ -119,6 +119,22 @@ const RegisterCompanyPage = () => {
                                             <div className="absolute inset-0 bg-red-400 rounded-full animate-ping opacity-30"></div>
                                         </div>
                                         <span className="text-sm text-red-300 font-medium">{error}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Success Message */}
+                        {successMessage && (
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 rounded-xl blur-md"></div>
+                                <div className="relative p-4 bg-slate-800/60 border border-emerald-400/40 rounded-xl backdrop-blur-sm">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="relative">
+                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                                            <div className="absolute inset-0 bg-emerald-400 rounded-full animate-ping opacity-30"></div>
+                                        </div>
+                                        <span className="text-sm text-emerald-300 font-medium">{successMessage}</span>
                                     </div>
                                 </div>
                             </div>
