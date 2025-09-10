@@ -29,7 +29,7 @@ const RegisterCompanyPage = () => {
 
         setLoading(true);
         try {
-            const response = await api.post('/register-company', {
+            const response = await api.post('/auth/register-company', {
                 companyName,
                 adminFullName,
                 adminUsername,
