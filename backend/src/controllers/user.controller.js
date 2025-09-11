@@ -1,7 +1,7 @@
 import { getConnection } from '../config/db.js';
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import 'dotenv/config';
 
 // Registrar usuario (por un administrador)
 exports.registerUser = async (req, res) => {

@@ -1,5 +1,5 @@
 import { pool } from '../config/db.js';
-const bcrypt = require('bcryptjs');
+import bcrypt from 'bcryptjs';
 
 exports.registerCompany = async (req, res) => {
     const { companyName, adminFullName, adminUsername, adminPassword } = req.body;
