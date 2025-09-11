@@ -1,4 +1,4 @@
-const { getConnection } = require('../config/db');
+import { getConnection } from '../config/db.js';
 
 // Crear un ticket
 exports.createTicket = async (req, res) => {

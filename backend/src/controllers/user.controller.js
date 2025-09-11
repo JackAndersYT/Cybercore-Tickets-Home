@@ -1,4 +1,4 @@
-const { getConnection } = require('../config/db');
+import { getConnection } from '../config/db.js';
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();

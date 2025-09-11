@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+import { pool } from '../config/db.js';
 const bcrypt = require('bcryptjs');
 
 exports.registerCompany = async (req, res) => {
