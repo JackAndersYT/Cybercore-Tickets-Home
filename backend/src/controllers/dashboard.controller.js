@@ -1,6 +1,6 @@
 import { getConnection } from '../config/db.js';
 
-exports.getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
     const { UserID: userId, Area: userArea, CompanyID: companyid } = req.user;
 
     if (!companyid) {

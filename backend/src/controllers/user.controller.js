@@ -3,8 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import 'dotenv/config';
 
-// Registrar usuario (por un administrador)
-exports.registerUser = async (req, res) => {
+export const registerUser = async (req, res) => {
     const { fullname, username, password, role, area } = req.body;
     const { CompanyID: companyid, Role: adminRole } = req.user;
 
@@ -38,8 +37,7 @@ exports.registerUser = async (req, res) => {
     }
 };
 
-// Login de usuario
-exports.loginUser = async (req, res) => {
+export const loginUser = async (req, res) => {
     const { username, password } = req.body;
     try {
         const pool = await getConnection();
@@ -70,8 +68,7 @@ exports.loginUser = async (req, res) => {
     }
 };
 
-// Obtener usuario logueado
-exports.getLoggedInUser = async (req, res) => {
+export const getLoggedInUser = async (req, res) => {
     const userid = parseInt(req.user.UserID, 10);
     try {
         const pool = await getConnection();
@@ -87,8 +84,7 @@ exports.getLoggedInUser = async (req, res) => {
     }
 };
 
-// Obtener todos los usuarios (paginación) (VERSIÓN CORREGIDA)
-exports.getAllUsers = async (req, res) => {
+export const getAllUsers = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 6;
     const offset = (page - 1) * limit;
@@ -149,8 +145,7 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-// Actualizar usuario
-exports.updateUser = async (req, res) => {
+export const updateUser = async (req, res) => {
     const useridToUpdate = parseInt(req.params.id, 10);
     const { fullname, role, area } = req.body;
     const { CompanyID: companyid, Role: adminRole } = req.user;
@@ -178,15 +173,14 @@ exports.updateUser = async (req, res) => {
     }
 };
 
-// Eliminar usuario
-exports.deleteUser = async (req, res) => {
-    const useridToDelete = parseInt(req.params.id, 10);
+export const deleteUser = async (req, res) => {
+    const useridToUpdate = parseInt(req.params.id, 10);
     const { UserID: adminuserid, Role: adminuserrole, CompanyID: companyid } = req.user;
 
     if (adminuserrole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });
     }
-    if (useridToDelete === adminuserid) {
+    if (useridToUpdate === adminuserid) {
         return res.status(400).json({ msg: 'No puedes eliminar tu propia cuenta.' });
     }
     if (!companyid) {
@@ -197,7 +191,7 @@ exports.deleteUser = async (req, res) => {
         const pool = await getConnection();
         const userToDeleteResult = await pool.query(
             `SELECT role, companyid FROM "Users" WHERE userid = $1`,
-            [useridToDelete]
+            [useridToUpdate]
         );
         if (userToDeleteResult.rows.length === 0) {
             return res.status(404).json({ msg: 'Usuario no encontrado.' });
@@ -209,7 +203,7 @@ exports.deleteUser = async (req, res) => {
         if (userToDeleteData.role === 'Administrador') {
             return res.status(403).json({ msg: 'No se puede eliminar a otro administrador.' });
         }
-        await pool.query(`DELETE FROM "Users" WHERE userid = $1 AND companyid = $2`, [useridToDelete, companyid]);
+        await pool.query(`DELETE FROM "Users" WHERE userid = $1 AND companyid = $2`, [useridToUpdate, companyid]);
         res.json({ msg: 'Usuario eliminado.' });
     } catch (error) {
         console.error('Error en deleteUser:', error);
@@ -217,8 +211,7 @@ exports.deleteUser = async (req, res) => {
     }
 };
 
-// Actualizar contraseña
-exports.updatePassword = async (req, res) => {
+export const updatePassword = async (req, res) => {
     const useridToUpdate = parseInt(req.params.id, 10);
     const { password } = req.body;
     const { CompanyID: companyid, Role: adminRole } = req.user;

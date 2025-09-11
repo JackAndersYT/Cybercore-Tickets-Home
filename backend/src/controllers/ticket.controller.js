@@ -1,7 +1,7 @@
 import { getConnection } from '../config/db.js';
 
 // Crear un ticket
-exports.createTicket = async (req, res) => {
+export const createTicket = async (req, res) => {
     const { title, description } = req.body;
     const assignedtoarea = req.body.assignedtoarea || req.body.assignedToArea;
     const { UserID: createdbyuserid, CompanyID: companyid } = req.user;

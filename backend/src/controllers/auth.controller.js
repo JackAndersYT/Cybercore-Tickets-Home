@@ -1,7 +1,7 @@
 import { pool } from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
-exports.registerCompany = async (req, res) => {
+export const registerCompany = async (req, res) => {
     const { companyName, adminFullName, adminUsername, adminPassword } = req.body;
 
     // Basic validation
