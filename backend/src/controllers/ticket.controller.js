@@ -274,10 +274,26 @@ exports.addTicketMessage = async (req, res) => {
         const insertResult = await pool.query(`
             INSERT INTO "TicketMessages" (ticketid, senderid, messagetext, filename, fileurl, filetype)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *, (SELECT fullname FROM "Users" WHERE userid = $2) AS "SenderFullName"
+            RETURNING 
+                messageid AS "MessageID",
+                ticketid AS "TicketID",
+                senderid AS "SenderID",
+                messagetext AS "MessageText",
+                sentat AS "SentAt",
+                isread AS "IsRead",
+                filename AS "FileName",
+                fileurl AS "FileURL",
+                filetype AS "FileType"
         `, [ticketid, senderid, messagetext || null, filename, fileurl, filetype]);
 
-        const fullMessage = insertResult.rows[0];
+        const newMessage = insertResult.rows[0];
+
+        const userResult = await pool.query(`SELECT fullname FROM "Users" WHERE userid = $1`, [senderid]);
+
+        const fullMessage = {
+            ...newMessage,
+            SenderFullName: userResult.rows[0].fullname
+        };
 
         const roomName = String(ticketid);
         const senderSocket = req.io.sockets.sockets.get(socketId);
