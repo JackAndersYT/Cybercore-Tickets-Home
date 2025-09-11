@@ -4,10 +4,19 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Configuración de la base de datos
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Render te da esta URL
-  ssl: { rejectUnauthorized: false } // obligatorio en Render
-});
+const dbConfig = {
+  connectionString: process.env.DATABASE_URL,
+};
+
+// En producción (por ejemplo en Render), usa SSL. En desarrollo, no.
+if (process.env.NODE_ENV === 'production') {
+  console.log("Usando configuración de base de datos para producción (con SSL).");
+  dbConfig.ssl = { rejectUnauthorized: false }; // obligatorio en Render
+} else {
+  console.log("Usando configuración de base de datos para desarrollo (sin SSL).");
+}
+
+const pool = new Pool(dbConfig);
 
 // Función para obtener conexión
 const getConnection = async () => {

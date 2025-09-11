@@ -7,18 +7,22 @@ require('dotenv').config();
 exports.createTicket = async (req, res) => {
     const { title, description } = req.body;
     const assignedtoarea = req.body.assignedtoarea || req.body.assignedToArea;
-    const createdbyuserid = parseInt(req.user.UserID, 10);
+    const { UserID: createdbyuserid, CompanyID: companyid } = req.user; // Extract CompanyID from authenticated user
 
     if (!title || !description || !assignedtoarea) {
         return res.status(400).json({ msg: 'Por favor, complete todos los campos requeridos.' });
     }
 
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
+
     try {
         const pool = await getConnection();
         const result = await pool.query(
-            `INSERT INTO "Tickets" (title, description, createdbyuserid, assignedtoarea) 
-             VALUES ($1, $2, $3, $4) RETURNING ticketid, assignedtoarea`,
-            [title, description, createdbyuserid, assignedtoarea]
+            `INSERT INTO "Tickets" (title, description, createdbyuserid, assignedtoarea, companyid) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING ticketid, assignedtoarea`,
+            [title, description, createdbyuserid, assignedtoarea, companyid]
         );
 
         const newTicket = result.rows[0];
@@ -38,7 +42,7 @@ exports.createTicket = async (req, res) => {
 
 // Obtener tickets con filtros y paginación
 exports.getTickets = async (req, res) => {
-    const { UserID: userId, Area: userArea } = req.user; // Use PascalCase
+    const { UserID: userId, Area: userArea, CompanyID: companyid } = req.user; // Use PascalCase
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
@@ -47,46 +51,55 @@ exports.getTickets = async (req, res) => {
     const dateFrom = req.query.dateFrom; // FIX: Changed to camelCase
     let dateTo = req.query.dateTo; // FIX: Changed to camelCase
 
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
+
     try {
         const pool = await getConnection();
 
+        // This auto-close logic should also be company-specific
         await pool.query(`
             UPDATE "Tickets"
             SET status = 'Cerrado', updatedat = NOW()
-            WHERE status = 'Resuelto' AND resolvedat < NOW() - INTERVAL '1 day'
-        `);
+            WHERE status = 'Resuelto' AND resolvedat < NOW() - INTERVAL '1 day' AND companyid = $1
+        `, [companyid]);
 
         const whereParams = [];
         let paramIndex = 1;
         let conditions = [];
 
+        // ** Primary filter: Company ID **
+        conditions.push(`t.companyid = ${paramIndex++}`);
+        whereParams.push(companyid);
+
         if (userArea === 'Personal Operativo') {
-            conditions.push(`t.createdbyuserid = $${paramIndex++}`);
+            conditions.push(`t.createdbyuserid = ${paramIndex++}`);
             whereParams.push(userId);
         } else {
-            conditions.push(`(t.assignedtoarea = $${paramIndex++} OR t.createdbyuserid = $${paramIndex++})`);
+            conditions.push(`(t.assignedtoarea = ${paramIndex++} OR t.createdbyuserid = ${paramIndex++})`);
             whereParams.push(userArea, userId);
         }
 
         if (searchTerm) {
-            conditions.push(`(t.title ILIKE $${paramIndex} OR t.description ILIKE $${paramIndex})`);
+            conditions.push(`(t.title ILIKE ${paramIndex} OR t.description ILIKE ${paramIndex})`);
             whereParams.push(`%${searchTerm}%`);
             paramIndex++;
         }
 
         if (status && status !== 'Todos') {
-            conditions.push(`t.status = $${paramIndex++}`);
+            conditions.push(`t.status = ${paramIndex++}`);
             whereParams.push(status);
         }
 
         if (dateFrom) {
-            conditions.push(`t.createdat >= $${paramIndex++}`);
+            conditions.push(`t.createdat >= ${paramIndex++}`);
             whereParams.push(dateFrom);
         }
         if (dateTo) {
             const nextDay = new Date(dateTo);
             nextDay.setDate(nextDay.getDate() + 1);
-            conditions.push(`t.createdat < $${paramIndex++}`);
+            conditions.push(`t.createdat < ${paramIndex++}`);
             whereParams.push(nextDay.toISOString().split('T')[0]); // Format as YYYY-MM-DD
         }
 
@@ -98,7 +111,7 @@ exports.getTickets = async (req, res) => {
         const totalPages = Math.ceil(totalTickets / limit);
 
         const ticketsParams = [userId, ...whereParams, offset, limit];
-        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n) + 1}`);
+        const ticketsWhereClause = whereClause.replace(/\$(\d+)/g, (_, n) => `${parseInt(n) + 1}`);
         
         const offsetLimitIndex = whereParams.length + 2;
 
@@ -121,7 +134,7 @@ exports.getTickets = async (req, res) => {
             JOIN "Users" u ON t.createdbyuserid = u.userid
             ${ticketsWhereClause}
             ORDER BY t.createdat DESC
-            OFFSET $${offsetLimitIndex} LIMIT $${offsetLimitIndex + 1}
+            OFFSET ${offsetLimitIndex} LIMIT ${offsetLimitIndex + 1}
         `;
         
         const ticketsResult = await pool.query(ticketsQuery, ticketsParams);
@@ -141,8 +154,11 @@ exports.getTickets = async (req, res) => {
 // Obtener ticket por ID
 exports.getTicketById = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
-    const userarea = req.user.Area; // Use PascalCase
+    const { UserID: userid, Area: userarea, CompanyID: companyid, Role: userrole } = req.user; // Use PascalCase
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
@@ -167,16 +183,16 @@ exports.getTicketById = async (req, res) => {
                 ) AS "unreadCount"
             FROM "Tickets" t
             JOIN "Users" u ON t.createdbyuserid = u.userid
-            WHERE t.ticketid = $2
-        `, [userid, ticketid]);
+            WHERE t.ticketid = $2 AND t.companyid = $3
+        `, [userid, ticketid, companyid]);
 
-        if (result.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
+        if (result.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado o no pertenece a su empresa.' });
 
         const ticket = result.rows[0];
 
-        // Authorization logic
-        if (req.user.Role === 'Administrador') {
-            // Admin can see all tickets
+        // Authorization logic (now runs on a ticket confirmed to be in the user's company)
+        if (userrole === 'Administrador') {
+            // Admin can see all tickets within their company
         } else if (userarea === 'Personal Operativo') {
             if (ticket.CreatedByUserID !== userid) {
                 return res.status(403).json({ msg: 'Acceso denegado.' });
@@ -198,7 +214,11 @@ exports.getTicketById = async (req, res) => {
 exports.updateTicketStatus = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { status } = req.body;
-    const userarea = req.user.Area; // Use PascalCase
+    const { Area: userarea, CompanyID: companyid } = req.user; // Use PascalCase
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     if (!['Soporte', 'Contabilidad'].includes(userarea)) {
         return res.status(403).json({ msg: 'No tienes permiso para cambiar el estado.' });
@@ -206,9 +226,9 @@ exports.updateTicketStatus = async (req, res) => {
 
     try {
         const pool = await getConnection();
-        const ticketResult = await pool.query(`SELECT assignedtoarea FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
+        const ticketResult = await pool.query(`SELECT assignedtoarea FROM "Tickets" WHERE ticketid = $1 AND companyid = $2`, [ticketid, companyid]);
 
-        if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
+        if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado o no pertenece a su empresa.' });
 
         const ticket = ticketResult.rows[0];
         if (ticket.assignedtoarea !== userarea) return res.status(403).json({ msg: 'No puedes cambiar el estado de un ticket que no está asignado a tu área.' });
@@ -219,8 +239,8 @@ exports.updateTicketStatus = async (req, res) => {
         if (status === 'Resuelto') {
             query += `, resolvedat = NOW()`;
         }
-        query += ` WHERE ticketid = $2`;
-        params.push(ticketid);
+        query += ` WHERE ticketid = $2 AND companyid = $3`;
+        params.push(ticketid, companyid);
 
         await pool.query(query, params);
 
@@ -241,9 +261,21 @@ exports.updateTicketStatus = async (req, res) => {
 // Obtener mensajes de un ticket
 exports.getTicketMessages = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
+    const { CompanyID: companyid } = req.user;
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
+
+        // Security check: Ensure the ticket belongs to the user's company before fetching messages.
+        const ticketCheck = await pool.query('SELECT ticketid FROM "Tickets" WHERE ticketid = $1 AND companyid = $2', [ticketid, companyid]);
+        if (ticketCheck.rows.length === 0) {
+            return res.status(404).json({ msg: 'Ticket no encontrado o no pertenece a su empresa.' });
+        }
+
         const result = await pool.query(`
             SELECT 
                 m.messageid AS "MessageID",
@@ -272,15 +304,25 @@ exports.getTicketMessages = async (req, res) => {
 // Agregar mensaje a un ticket
 exports.addTicketMessage = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const senderid = parseInt(req.user.UserID, 10);
+    const { UserID: senderid, CompanyID: companyid } = req.user;
     const messagetext = req.body.messagetext || '';
     const file = req.file;
     const socketId = req.query.socketId; // Get socketId from query
 
     if (!messagetext && !file) return res.status(400).json({ msg: 'El mensaje no puede estar vacío.' });
 
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
+
     try {
         const pool = await getConnection();
+
+        // Security check: Ensure the ticket belongs to the user's company before adding a message.
+        const ticketCheck = await pool.query('SELECT createdbyuserid FROM "Tickets" WHERE ticketid = $1 AND companyid = $2', [ticketid, companyid]);
+        if (ticketCheck.rows.length === 0) {
+            return res.status(403).json({ msg: 'No tiene permiso para interactuar con este ticket.' });
+        }
 
         const filename = file ? file.originalname : null;
         const fileurl = file ? `/uploads/${file.filename}` : null;
@@ -321,14 +363,14 @@ exports.addTicketMessage = async (req, res) => {
             req.io.to(roomName).emit('newMessage', fullMessage);
         }
 
-        const ticketResult = await pool.query(`SELECT title, createdbyuserid FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
+        const ticketResult = await pool.query(`SELECT title FROM "Tickets" WHERE ticketid = $1`, [ticketid]);
 
         req.io.emit('ticketUpdate', {
             ticketId: ticketid,
             title: ticketResult.rows[0].title,
             senderName: fullMessage.SenderFullName,
             senderId: senderid,
-            recipientId: ticketResult.rows[0].createdbyuserid
+            recipientId: ticketCheck.rows[0].createdbyuserid
         });
 
         res.status(201).json(fullMessage);
@@ -341,15 +383,21 @@ exports.addTicketMessage = async (req, res) => {
 // Marcar mensajes como leídos
 exports.markMessagesAsRead = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.UserID, 10);
+    const { UserID: userid, CompanyID: companyid } = req.user;
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
+        // We add a subquery to ensure the update only happens on tickets belonging to the user's company.
         await pool.query(`
             UPDATE "TicketMessages"
             SET isread = true
             WHERE ticketid = $1 AND senderid != $2 AND isread = false
-        `, [ticketid, userid]);
+              AND ticketid IN (SELECT ticketid FROM "Tickets" WHERE ticketid = $1 AND companyid = $3)
+        `, [ticketid, userid, companyid]);
 
         const roomName = String(ticketid);
         req.io.to(roomName).emit('messagesRead', { readerId: userid });
@@ -364,21 +412,24 @@ exports.markMessagesAsRead = async (req, res) => {
 // Actualizar ticket
 exports.updateTicket = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
-    const userrole = req.user.Role; // Use PascalCase
+    const { UserID: userid, Role: userrole, CompanyID: companyid } = req.user; // Use PascalCase
     const { title, description } = req.body;
 
     if (!title || !description) return res.status(400).json({ msg: 'El título y la descripción son requeridos.' });
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
         const ticketResult = await pool.query(`
             SELECT createdbyuserid, status
             FROM "Tickets"
-            WHERE ticketid = $1
-        `, [ticketid]);
+            WHERE ticketid = $1 AND companyid = $2
+        `, [ticketid, companyid]);
 
-        if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
+        if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado o no pertenece a su empresa.' });
 
         const ticket = ticketResult.rows[0];
 
@@ -393,8 +444,8 @@ exports.updateTicket = async (req, res) => {
         await pool.query(`
             UPDATE "Tickets"
             SET title = $1, description = $2, updatedat = NOW()
-            WHERE ticketid = $3
-        `, [title, description, ticketid]);
+            WHERE ticketid = $3 AND companyid = $4
+        `, [title, description, ticketid, companyid]);
 
         // Emit event to specific ticket room
         const roomName = String(ticketid);
@@ -413,18 +464,21 @@ exports.updateTicket = async (req, res) => {
 // Cancelar ticket
 exports.cancelTicket = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
-    const userid = parseInt(req.user.UserID, 10); // Use PascalCase
-    const userrole = req.user.Role; // Use PascalCase
+    const { UserID: userid, Role: userrole, CompanyID: companyid } = req.user; // Use PascalCase
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
         const ticketResult = await pool.query(`
             SELECT status, createdbyuserid
             FROM "Tickets"
-            WHERE ticketid = $1
-        `, [ticketid]);
+            WHERE ticketid = $1 AND companyid = $2
+        `, [ticketid, companyid]);
 
-        if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado.' });
+        if (ticketResult.rows.length === 0) return res.status(404).json({ msg: 'Ticket no encontrado o no pertenece a su empresa.' });
 
         const ticket = ticketResult.rows[0];
 
@@ -436,8 +490,8 @@ exports.cancelTicket = async (req, res) => {
         await pool.query(`
             UPDATE "Tickets"
             SET status = 'Cancelado', updatedat = NOW()
-            WHERE ticketid = $1
-        `, [ticketid]);
+            WHERE ticketid = $1 AND companyid = $2
+        `, [ticketid, companyid]);
 
         // Emit event to specific ticket room
         const roomName = String(ticketid);

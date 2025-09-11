@@ -1,7 +1,11 @@
 const { getConnection } = require('../config/db');
 
 exports.getDashboardStats = async (req, res) => {
-    const { UserID: userId, Area: userArea } = req.user; // Use PascalCase
+    const { UserID: userId, Area: userArea, CompanyID: companyid } = req.user; // Use PascalCase
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
@@ -15,28 +19,28 @@ exports.getDashboardStats = async (req, res) => {
                     COUNT(*) AS total, 
                     COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
                 FROM "Tickets"
-                WHERE createdbyuserid = $1 AND status != 'Cancelado'
+                WHERE createdbyuserid = $1 AND status != 'Cancelado' AND companyid = $2
             `;
-            totalVsOpenParams = [userId];
+            totalVsOpenParams = [userId, companyid];
         } else {
             totalVsOpenQuery = `
                 SELECT 
                     COUNT(*) AS total, 
                     COUNT(CASE WHEN status IN ('Abierto', 'En Revisión') THEN 1 END) AS openTickets
                 FROM "Tickets"
-                WHERE (assignedtoarea = $1 OR createdbyuserid = $2) AND status != 'Cancelado'
+                WHERE (assignedtoarea = $1 OR createdbyuserid = $2) AND status != 'Cancelado' AND companyid = $3
             `;
-            totalVsOpenParams = [userArea, userId];
+            totalVsOpenParams = [userArea, userId, companyid];
         }
 
         const totalVsOpenResult = await pool.query(totalVsOpenQuery, totalVsOpenParams);
 
-        // Obtener flujo de tickets: realizados y recibidos
+        // Obtener flujo de tickets: realizados y recibidos, scoped by company
         const ticketFlowResult = await pool.query(`
             SELECT
-                (SELECT COUNT(*) FROM "Tickets" WHERE createdbyuserid = $1) AS realizados,
-                (SELECT COUNT(*) FROM "Tickets" WHERE assignedtoarea = $2) AS recibidos
-        `, [userId, userArea]);
+                (SELECT COUNT(*) FROM "Tickets" WHERE createdbyuserid = $1 AND companyid = $3) AS realizados,
+                (SELECT COUNT(*) FROM "Tickets" WHERE assignedtoarea = $2 AND companyid = $3) AS recibidos
+        `, [userId, userArea, companyid]);
 
         const totalVsOpenData = totalVsOpenResult.rows[0] || { total: 0, openTickets: 0 };
         const ticketFlowData = ticketFlowResult.rows[0] || { realizados: 0, recibidos: 0 };

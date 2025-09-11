@@ -3,12 +3,21 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-// Registrar usuario
+// Registrar usuario (por un administrador)
 exports.registerUser = async (req, res) => {
     const { fullname, username, password, role, area } = req.body;
+    const { CompanyID: companyid, Role: adminRole } = req.user;
+
+    if (adminRole !== 'Administrador') {
+        return res.status(403).json({ msg: 'No tienes permiso para registrar nuevos usuarios.' });
+    }
 
     if (!fullname || !username || !password || !role || !area) {
         return res.status(400).json({ msg: "Por favor, complete todos los campos." });
+    }
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El administrador no está asociado a ninguna empresa.' });
     }
 
     try {
@@ -16,10 +25,11 @@ exports.registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordhash = await bcrypt.hash(password, salt);
 
+        // El nuevo usuario hereda el CompanyID del administrador que lo crea
         await pool.query(
-            `INSERT INTO "Users" (fullname, username, passwordhash, role, area)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [fullname, username, passwordhash, role, area]
+            `INSERT INTO "Users" (fullname, username, passwordhash, role, area, companyid)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [fullname, username, passwordhash, role, area, companyid]
         );
 
         res.status(201).json({ msg: "Usuario registrado exitosamente." });
@@ -56,7 +66,8 @@ exports.loginUser = async (req, res) => {
                 UserID: user.userid,
                 FullName: user.fullname,
                 Role: user.role,
-                Area: user.area
+                Area: user.area,
+                CompanyID: user.companyid
             }
         };
 
@@ -95,8 +106,12 @@ exports.getAllUsers = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 6;
     const offset = (page - 1) * limit;
-
+    const { CompanyID: companyid } = req.user;
     const { searchTerm, role, area } = req.query;
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
@@ -116,18 +131,22 @@ exports.getAllUsers = async (req, res) => {
         const queryParams = [];
         let paramIndex = 1;
 
+        // ** Primary filter: Company ID **
+        whereConditions.push(`companyid = ${paramIndex++}`);
+        queryParams.push(companyid);
+
         if (searchTerm) {
-            whereConditions.push(`(fullname ILIKE $${paramIndex} OR username ILIKE $${paramIndex})`);
+            whereConditions.push(`(fullname ILIKE ${paramIndex} OR username ILIKE ${paramIndex})`);
             queryParams.push(`%${searchTerm}%`);
             paramIndex++;
         }
         if (role && role !== 'Todos') {
-            whereConditions.push(`role = $${paramIndex}`);
+            whereConditions.push(`role = ${paramIndex}`);
             queryParams.push(role);
             paramIndex++;
         }
         if (area && area !== 'Todos') {
-            whereConditions.push(`area = $${paramIndex}`);
+            whereConditions.push(`area = ${paramIndex}`);
             queryParams.push(area);
             paramIndex++;
         }
@@ -144,7 +163,7 @@ exports.getAllUsers = async (req, res) => {
         const totalPages = Math.ceil(totalUsers / limit);
 
         // Get user data for the current page
-        dataQuery += ` ORDER BY userid OFFSET $${paramIndex} LIMIT $${paramIndex + 1}`;
+        dataQuery += ` ORDER BY userid OFFSET ${paramIndex} LIMIT ${paramIndex + 1}`;
         const dataParams = [...queryParams, offset, limit];
         const usersResult = await pool.query(dataQuery, dataParams);
 
@@ -163,15 +182,29 @@ exports.getAllUsers = async (req, res) => {
 exports.updateUser = async (req, res) => {
     const useridToUpdate = parseInt(req.params.id, 10);
     const { fullname, role, area } = req.body;
+    const { CompanyID: companyid, Role: adminRole } = req.user;
+
+    if (adminRole !== 'Administrador') {
+        return res.status(403).json({ msg: 'No tienes permiso para actualizar usuarios.' });
+    }
+
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El administrador no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
-        await pool.query(
+        const result = await pool.query(
             `UPDATE "Users"
              SET fullname = $1, role = $2, area = $3
-             WHERE userid = $4`,
-            [fullname, role, area, useridToUpdate]
+             WHERE userid = $4 AND companyid = $5`,
+            [fullname, role, area, useridToUpdate, companyid]
         );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ msg: 'Usuario no encontrado en su empresa.' });
+        }
+
         res.json({ msg: 'Usuario actualizado correctamente.' });
     } catch (error) {
         console.error(error);
@@ -182,8 +215,7 @@ exports.updateUser = async (req, res) => {
 // Eliminar usuario
 exports.deleteUser = async (req, res) => {
     const useridToDelete = parseInt(req.params.id, 10);
-    const adminuserid = parseInt(req.user.UserID, 10);
-    const adminuserrole = req.user.Role;
+    const { UserID: adminuserid, Role: adminuserrole, CompanyID: companyid } = req.user;
 
     if (adminuserrole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });
@@ -191,19 +223,32 @@ exports.deleteUser = async (req, res) => {
     if (useridToDelete === adminuserid) {
         return res.status(400).json({ msg: 'No puedes eliminar tu propia cuenta.' });
     }
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El administrador no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
         const userToDeleteResult = await pool.query(
-            `SELECT role FROM "Users" WHERE userid = $1`,
+            `SELECT role, companyid FROM "Users" WHERE userid = $1`,
             [useridToDelete]
         );
 
-        if (userToDeleteResult.rows[0]?.role === 'Administrador') {
+        if (userToDeleteResult.rows.length === 0) {
+            return res.status(404).json({ msg: 'Usuario no encontrado.' });
+        }
+
+        const userToDeleteData = userToDeleteResult.rows[0];
+
+        if (userToDeleteData.companyid !== companyid) {
+            return res.status(403).json({ msg: 'No puedes eliminar usuarios de otra empresa.' });
+        }
+
+        if (userToDeleteData.role === 'Administrador') {
             return res.status(403).json({ msg: 'No se puede eliminar a otro administrador.' });
         }
 
-        await pool.query(`DELETE FROM "Users" WHERE userid = $1`, [useridToDelete]);
+        await pool.query(`DELETE FROM "Users" WHERE userid = $1 AND companyid = $2`, [useridToDelete, companyid]);
         res.json({ msg: 'Usuario eliminado.' });
     } catch (error) {
         console.error(error);
@@ -215,18 +260,29 @@ exports.deleteUser = async (req, res) => {
 exports.updatePassword = async (req, res) => {
     const useridToUpdate = parseInt(req.params.id, 10);
     const { password } = req.body;
+    const { CompanyID: companyid, Role: adminRole } = req.user;
 
+    if (adminRole !== 'Administrador') {
+        return res.status(403).json({ msg: 'No tienes permiso para actualizar contraseñas.' });
+    }
     if (!password) return res.status(400).json({ msg: 'La nueva contraseña es requerida.' });
+    if (!companyid) {
+        return res.status(400).json({ msg: 'El administrador no está asociado a ninguna empresa.' });
+    }
 
     try {
         const pool = await getConnection();
         const salt = await bcrypt.genSalt(10);
         const passwordhash = await bcrypt.hash(password, salt);
 
-        await pool.query(
-            `UPDATE "Users" SET passwordhash = $1 WHERE userid = $2`,
-            [passwordhash, useridToUpdate]
+        const result = await pool.query(
+            `UPDATE "Users" SET passwordhash = $1 WHERE userid = $2 AND companyid = $3`,
+            [passwordhash, useridToUpdate, companyid]
         );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ msg: 'Usuario no encontrado en su empresa.' });
+        }
 
         res.json({ msg: 'Contraseña actualizada correctamente.' });
     } catch (error) {
