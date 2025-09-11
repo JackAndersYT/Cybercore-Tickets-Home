@@ -33,7 +33,7 @@ export const createTicket = async (req, res) => {
 };
 
 // Obtener tickets con filtros y paginación (VERSIÓN CORREGIDA)
-exports.getTickets = async (req, res) => {
+export const getTickets = async (req, res) => {
     const { UserID: userId, Area: userArea, CompanyID: companyid } = req.user;
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
@@ -128,7 +128,7 @@ exports.getTickets = async (req, res) => {
 };
 
 // Obtener ticket por ID
-exports.getTicketById = async (req, res) => {
+export const getTicketById = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { UserID: userid, Area: userarea, CompanyID: companyid, Role: userrole } = req.user;
 
@@ -172,7 +172,7 @@ exports.getTicketById = async (req, res) => {
 };
 
 // Actualizar estado del ticket
-exports.updateTicketStatus = async (req, res) => {
+export const updateTicketStatus = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { status } = req.body;
     const { Area: userarea, CompanyID: companyid } = req.user;
@@ -215,7 +215,7 @@ exports.updateTicketStatus = async (req, res) => {
 };
 
 // Obtener mensajes de un ticket
-exports.getTicketMessages = async (req, res) => {
+export const getTicketMessages = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { CompanyID: companyid } = req.user;
 
@@ -250,7 +250,7 @@ exports.getTicketMessages = async (req, res) => {
 };
 
 // Agregar mensaje a un ticket
-exports.addTicketMessage = async (req, res) => {
+export const addTicketMessage = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { UserID: senderid, CompanyID: companyid } = req.user;
     const { messagetext } = req.body;
@@ -317,7 +317,7 @@ exports.addTicketMessage = async (req, res) => {
 };
 
 // Marcar mensajes como leídos
-exports.markMessagesAsRead = async (req, res) => {
+export const markMessagesAsRead = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { UserID: userid, CompanyID: companyid } = req.user;
 
@@ -343,7 +343,7 @@ exports.markMessagesAsRead = async (req, res) => {
 };
 
 // Actualizar ticket
-exports.updateTicket = async (req, res) => {
+export const updateTicket = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { UserID: userid, Role: userrole, CompanyID: companyid } = req.user;
     const { title, description } = req.body;
@@ -383,7 +383,7 @@ exports.updateTicket = async (req, res) => {
 };
 
 // Cancelar ticket
-exports.cancelTicket = async (req, res) => {
+export const cancelTicket = async (req, res) => {
     const ticketid = parseInt(req.params.id, 10);
     const { UserID: userid, Role: userrole, CompanyID: companyid } = req.user;
 

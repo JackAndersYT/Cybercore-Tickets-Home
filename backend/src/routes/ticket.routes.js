@@ -1,7 +1,7 @@
-const { Router } = require('express');
-const auth = require('../middleware/auth');
-const upload = require('../utils/upload'); 
-const { createTicket, getTickets, getTicketById, updateTicketStatus,getTicketMessages,addTicketMessage,markMessagesAsRead,updateTicket,cancelTicket } = require('../controllers/ticket.controller');
+import { Router } from 'express';
+import auth from '../middleware/auth.js';
+import upload from '../utils/upload.js'; 
+import { createTicket, getTickets, getTicketById, updateTicketStatus,getTicketMessages,addTicketMessage,markMessagesAsRead,updateTicket,cancelTicket } from '../controllers/ticket.controller.js';
 
 const router = Router();
 
@@ -27,4 +27,4 @@ router.put('/:id', auth, updateTicket);
 router.put('/:id/cancel', auth, cancelTicket);
 router.put('/:id/messages/read', auth, markMessagesAsRead);
 
-module.exports = router;
+export default router;

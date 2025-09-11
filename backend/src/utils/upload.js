@@ -1,6 +1,6 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Asegurar que existe la carpeta uploads
 const uploadsDir = 'uploads';
@@ -54,4 +54,4 @@ const upload = multer({
     }
 });
 
-module.exports = upload;
+export default upload;

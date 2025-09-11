@@ -1,8 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const { Server } = require("socket.io");
-const { checkDbConnection } = require('./config/db');
+import express from 'express';
+import cors from 'cors';
+import http from 'http';
+import { Server } from "socket.io";
+import { checkDbConnection } from './config/db.js';
+
+import userRoutes from './routes/user.routes.js';
+import ticketRoutes from './routes/ticket.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -27,10 +32,10 @@ app.use((req, res, next) => {
 });
 
 // Rutas
-app.use('/api/users', require('./routes/user.routes'));
-app.use('/api/tickets', require('./routes/ticket.routes'));
-app.use('/api/dashboard', require('./routes/dashboard.routes'));
-app.use('/api/auth', require('./routes/auth.routes')); // Nueva ruta de autenticación
+app.use('/api/users', userRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/auth', authRoutes); // Nueva ruta de autenticación
 
 const ticketRooms = {};
 
