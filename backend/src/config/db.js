@@ -38,4 +38,4 @@ const checkDbConnection = async () => {
   }
 };
 
-export { getConnection, checkDbConnection, pool };
+module.exports = { getConnection, checkDbConnection, pool };
