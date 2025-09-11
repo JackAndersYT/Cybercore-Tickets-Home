@@ -131,7 +131,6 @@ exports.getAllUsers = async (req, res) => {
         const queryParams = [];
         let paramIndex = 1;
 
-        // ** Primary filter: Company ID **
         whereConditions.push(`companyid = ${paramIndex++}`);
         queryParams.push(companyid);
 
@@ -141,14 +140,12 @@ exports.getAllUsers = async (req, res) => {
             paramIndex++;
         }
         if (role && role !== 'Todos') {
-            whereConditions.push(`role = ${paramIndex}`);
+            whereConditions.push(`role = ${paramIndex++}`);
             queryParams.push(role);
-            paramIndex++;
         }
         if (area && area !== 'Todos') {
-            whereConditions.push(`area = ${paramIndex}`);
+            whereConditions.push(`area = ${paramIndex++}`);
             queryParams.push(area);
-            paramIndex++;
         }
 
         if (whereConditions.length > 0) {
@@ -157,13 +154,11 @@ exports.getAllUsers = async (req, res) => {
             dataQuery += whereClause;
         }
 
-        // Get total count for pagination
         const countResult = await pool.query(countQuery, queryParams);
         const totalUsers = parseInt(countResult.rows[0].totalusers, 10);
         const totalPages = Math.ceil(totalUsers / limit);
 
-        // Get user data for the current page
-        dataQuery += ` ORDER BY userid OFFSET ${paramIndex} LIMIT ${paramIndex + 1}`;
+        dataQuery += ` ORDER BY userid OFFSET ${paramIndex++} LIMIT ${paramIndex++}`;
         const dataParams = [...queryParams, offset, limit];
         const usersResult = await pool.query(dataQuery, dataParams);
 

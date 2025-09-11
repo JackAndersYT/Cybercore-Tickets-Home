@@ -46,10 +46,10 @@ exports.getTickets = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 9;
     const offset = (page - 1) * limit;
-    const searchTerm = req.query.searchTerm || ''; // FIX: Changed to camelCase
+    const searchTerm = req.query.searchTerm || '';
     const status = req.query.status || 'Todos';
-    const dateFrom = req.query.dateFrom; // FIX: Changed to camelCase
-    let dateTo = req.query.dateTo; // FIX: Changed to camelCase
+    const dateFrom = req.query.dateFrom;
+    let dateTo = req.query.dateTo;
 
     if (!companyid) {
         return res.status(400).json({ msg: 'El usuario no está asociado a ninguna empresa.' });
@@ -58,7 +58,6 @@ exports.getTickets = async (req, res) => {
     try {
         const pool = await getConnection();
 
-        // This auto-close logic should also be company-specific
         await pool.query(`
             UPDATE "Tickets"
             SET status = 'Cerrado', updatedat = NOW()
@@ -69,7 +68,6 @@ exports.getTickets = async (req, res) => {
         let paramIndex = 1;
         let conditions = [];
 
-        // ** Primary filter: Company ID **
         conditions.push(`t.companyid = ${paramIndex++}`);
         whereParams.push(companyid);
 
@@ -100,7 +98,7 @@ exports.getTickets = async (req, res) => {
             const nextDay = new Date(dateTo);
             nextDay.setDate(nextDay.getDate() + 1);
             conditions.push(`t.createdat < ${paramIndex++}`);
-            whereParams.push(nextDay.toISOString().split('T')[0]); // Format as YYYY-MM-DD
+            whereParams.push(nextDay.toISOString().split('T')[0]);
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
