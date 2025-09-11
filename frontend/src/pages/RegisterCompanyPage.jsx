@@ -37,7 +37,9 @@ const RegisterCompanyPage = () => {
             });
 
             setSuccessMessage(response.data.msg || 'Empresa y usuario administrador registrados con éxito!');
-            // navigate('/login'); // Redirigir al login tras el registro - maybe after a delay or user action
+            setTimeout(() => {
+                navigate('/login');
+            }, 2000); // Redirigir al login después de 2 segundos
 
         } catch (err) {
             setError(err.response?.data?.msg || 'Error al registrar la empresa. Inténtelo de nuevo.');

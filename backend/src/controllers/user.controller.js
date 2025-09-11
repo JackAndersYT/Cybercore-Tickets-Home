@@ -148,9 +148,9 @@ export const getAllUsers = async (req, res) => {
 export const updateUser = async (req, res) => {
     const useridToUpdate = parseInt(req.params.id, 10);
     const { fullname, role, area } = req.body;
-    const { CompanyID: companyid, Role: adminRole } = req.user;
+    const { UserID: requestingUserId, CompanyID: companyid, Role: requestingUserRole } = req.user;
 
-    if (adminRole !== 'Administrador') {
+    if (requestingUserRole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para actualizar usuarios.' });
     }
     if (!companyid) {
@@ -159,12 +159,60 @@ export const updateUser = async (req, res) => {
 
     try {
         const pool = await getConnection();
-        const result = await pool.query(
-            `UPDATE "Users" SET fullname = $1, role = $2, area = $3 WHERE userid = $4 AND companyid = $5`,
-            [fullname, role, area, useridToUpdate, companyid]
+
+        // Fetch the user being updated
+        const userToUpdateResult = await pool.query(
+            `SELECT fullname, role, area FROM "Users" WHERE userid = $1 AND companyid = $2`,
+            [useridToUpdate, companyid]
         );
-        if (result.rowCount === 0) {
+
+        if (userToUpdateResult.rows.length === 0) {
             return res.status(404).json({ msg: 'Usuario no encontrado en su empresa.' });
+        }
+
+        const userToUpdate = userToUpdateResult.rows[0];
+        let updateFields = [];
+        let queryParams = [];
+        let paramIndex = 1;
+
+        // Always allow fullname update
+        if (fullname !== undefined && fullname !== userToUpdate.fullname) {
+            updateFields.push(`fullname = ${paramIndex++}`);
+            queryParams.push(fullname);
+        }
+
+        // Logic for role and area updates
+        if (userToUpdate.role === 'Administrador') {
+            // If the user being updated is an Administrator
+            if (role !== undefined && role !== userToUpdate.role) {
+                return res.status(403).json({ msg: 'No se puede cambiar el rol de un administrador.' });
+            }
+            if (area !== undefined && area !== userToUpdate.area) {
+                return res.status(403).json({ msg: 'No se puede cambiar el área de un administrador.' });
+            }
+        } else {
+            // If the user being updated is NOT an Administrator, allow role/area changes by an admin
+            if (role !== undefined && role !== userToUpdate.role) {
+                updateFields.push(`role = ${paramIndex++}`);
+                queryParams.push(role);
+            }
+            if (area !== undefined && area !== userToUpdate.area) {
+                updateFields.push(`area = ${paramIndex++}`);
+                queryParams.push(area);
+            }
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(200).json({ msg: 'No hay cambios para actualizar.' });
+        }
+
+        queryParams.push(useridToUpdate, companyid);
+        const updateQuery = `UPDATE "Users" SET ${updateFields.join(', ')} WHERE userid = ${paramIndex++} AND companyid = ${paramIndex++}`;
+
+        const result = await pool.query(updateQuery, queryParams);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ msg: 'Usuario no encontrado o no se pudo actualizar.' });
         }
         res.json({ msg: 'Usuario actualizado correctamente.' });
     } catch (error) {
