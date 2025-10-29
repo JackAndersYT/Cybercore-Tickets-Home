@@ -6,8 +6,8 @@ const router = Router();
 
 // @route   POST /api/users/register
 // @desc    Registra un nuevo usuario
-// @access  Public (eventualmente será privado para Admins)
-router.post('/register', registerUser);
+// @access  Private (solo para Admins)
+router.post('/register', auth, registerUser);
 // @route   POST /api/users/login
 // @desc    Autentica un usuario y devuelve un token
 // @access  Public
