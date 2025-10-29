@@ -63,7 +63,7 @@ const AdminUsersPage = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     
     const [editFormData, setEditFormData] = useState({ fullname: '', role: '', area: '', password: '', confirmPassword: '' });
-    const [registerFormData, setRegisterFormData] = useState({ fullname: '', username: '', password: '', confirmPassword: '', role: 'Usuario', area: 'Personal Operativo' });
+    const [registerFormData, setRegisterFormData] = useState({ fullname: '', username: '', password: '', confirmPassword: '', role: 'Administrador', area: 'Personal Operativo' });
     
     const [filters, setFilters] = useState({ searchTerm: '', area: 'Todos', role: 'Todos' });
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -802,16 +802,14 @@ const AdminUsersPage = () => {
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-cyan-400">Rol</label>
                                     <div className="relative">
-                                        <select 
-                                            name="role" 
-                                            value={registerFormData.role} 
-                                            onChange={(e) => handleFormChange(e, setRegisterFormData, setRegisterFormErrors)} 
-                                            className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 appearance-none"
-                                        >
-                                            <option value="Usuario">Usuario</option>
-                                            <option value="Administrador">Administrador</option>
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                                                                                <select
+                                                                                    name="role"
+                                                                                    value={registerFormData.role}
+                                                                                    onChange={(e) => handleFormChange(e, setRegisterFormData, setRegisterFormErrors)}
+                                                                                    className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 appearance-none"
+                                                                                >
+                                                                                    <option value="Administrador">Administrador</option>
+                                                                                </select>                                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
@@ -925,7 +923,6 @@ const AdminUsersPage = () => {
                                             disabled={selectedUser?.Role === 'Administrador'}
                                             className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 appearance-none disabled:bg-slate-700/50 disabled:cursor-not-allowed"
                                         >
-                                            <option value="Usuario">Usuario</option>
                                             <option value="Administrador">Administrador</option>
                                         </select>
                                         <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
