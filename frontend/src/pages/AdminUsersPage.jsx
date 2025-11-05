@@ -809,6 +809,7 @@ const AdminUsersPage = () => {
                                                                                     className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 appearance-none"
                                                                                 >
                                                                                     <option value="Administrador">Administrador</option>
+                                                                                    <option value="Estándar">Estándar</option>
                                                                                 </select>                                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                                     </div>
                                 </div>
@@ -920,10 +921,10 @@ const AdminUsersPage = () => {
                                             name="role" 
                                             value={editFormData.role} 
                                             onChange={(e) => handleFormChange(e, setEditFormData, setEditFormErrors)} 
-                                            disabled={selectedUser?.Role === 'Administrador'}
-                                            className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 appearance-none disabled:bg-slate-700/50 disabled:cursor-not-allowed"
+                                            className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-sm border border-slate-600/50 rounded-xl text-white focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-300 appearance-none"
                                         >
                                             <option value="Administrador">Administrador</option>
+                                            <option value="Estándar">Estándar</option>
                                         </select>
                                         <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
                                     </div>

@@ -57,7 +57,8 @@ export const loginUser = async (req, res) => {
                 FullName: user.fullname,
                 Role: user.role,
                 Area: user.area,
-                CompanyID: user.companyid
+                CompanyID: user.companyid,
+                IsProtected: user.is_protected
             }
         };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
@@ -148,7 +149,7 @@ export const getAllUsers = async (req, res) => {
 export const updateUser = async (req, res) => {
     const useridToUpdate = parseInt(req.params.id, 10);
     const { fullname, role, area } = req.body;
-    const { UserID: requestingUserId, CompanyID: companyid, Role: requestingUserRole } = req.user;
+    const { CompanyID: companyid, Role: requestingUserRole, IsProtected: isRequesterProtected } = req.user;
 
     if (requestingUserRole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para actualizar usuarios.' });
@@ -160,9 +161,8 @@ export const updateUser = async (req, res) => {
     try {
         const pool = await getConnection();
 
-        // Fetch the user being updated
         const userToUpdateResult = await pool.query(
-            `SELECT fullname, role, area FROM "Users" WHERE userid = $1 AND companyid = $2`,
+            `SELECT fullname, role, area, is_protected FROM "Users" WHERE userid = $1 AND companyid = $2`,
             [useridToUpdate, companyid]
         );
 
@@ -171,35 +171,38 @@ export const updateUser = async (req, res) => {
         }
 
         const userToUpdate = userToUpdateResult.rows[0];
+        const isRoleChangeAttempted = role !== undefined && role !== userToUpdate.role;
+        const isAreaChangeAttempted = area !== undefined && area !== userToUpdate.area;
+
+        // Rule 1: Protected user update logic
+        if (userToUpdate.is_protected) {
+            if (isRoleChangeAttempted || isAreaChangeAttempted) {
+                return res.status(403).json({ msg: 'El rol y el área del administrador principal no se pueden cambiar.' });
+            }
+        }
+        // Rule 2: Normal administrator update logic
+        else if (userToUpdate.role === 'Administrador') {
+            if ((isRoleChangeAttempted || isAreaChangeAttempted) && !isRequesterProtected) {
+                return res.status(403).json({ msg: 'Solo el administrador principal puede cambiar el rol o área de otros administradores.' });
+            }
+        }
+
+        // Build the update query
         let updateFields = [];
         let queryParams = [];
         let paramIndex = 1;
 
-        // Always allow fullname update
-        if (fullname !== undefined && fullname !== userToUpdate.fullname) {
-            updateFields.push(`fullname = ${paramIndex++}`);
+        if (fullname !== undefined) {
+            updateFields.push(`fullname = $${paramIndex++}`);
             queryParams.push(fullname);
         }
-
-        // Logic for role and area updates
-        if (userToUpdate.role === 'Administrador') {
-            // If the user being updated is an Administrator
-            if (role !== undefined && role !== userToUpdate.role) {
-                return res.status(403).json({ msg: 'No se puede cambiar el rol de un administrador.' });
-            }
-            if (area !== undefined && area !== userToUpdate.area) {
-                return res.status(403).json({ msg: 'No se puede cambiar el área de un administrador.' });
-            }
-        } else {
-            // If the user being updated is NOT an Administrator, allow role/area changes by an admin
-            if (role !== undefined && role !== userToUpdate.role) {
-                updateFields.push(`role = ${paramIndex++}`);
-                queryParams.push(role);
-            }
-            if (area !== undefined && area !== userToUpdate.area) {
-                updateFields.push(`area = ${paramIndex++}`);
-                queryParams.push(area);
-            }
+        if (role !== undefined) {
+            updateFields.push(`role = $${paramIndex++}`);
+            queryParams.push(role);
+        }
+        if (area !== undefined) {
+            updateFields.push(`area = $${paramIndex++}`);
+            queryParams.push(area);
         }
 
         if (updateFields.length === 0) {
@@ -207,7 +210,7 @@ export const updateUser = async (req, res) => {
         }
 
         queryParams.push(useridToUpdate, companyid);
-        const updateQuery = `UPDATE "Users" SET ${updateFields.join(', ')} WHERE userid = ${paramIndex++} AND companyid = ${paramIndex++}`;
+        const updateQuery = `UPDATE "Users" SET ${updateFields.join(', ')} WHERE userid = $${paramIndex++} AND companyid = $${paramIndex++}`;
 
         const result = await pool.query(updateQuery, queryParams);
 
@@ -222,13 +225,13 @@ export const updateUser = async (req, res) => {
 };
 
 export const deleteUser = async (req, res) => {
-    const useridToUpdate = parseInt(req.params.id, 10);
-    const { UserID: adminuserid, Role: adminuserrole, CompanyID: companyid } = req.user;
+    const useridToDelete = parseInt(req.params.id, 10);
+    const { UserID: requesterId, Role: requesterRole, CompanyID: companyid, IsProtected: isRequesterProtected } = req.user;
 
-    if (adminuserrole !== 'Administrador') {
+    if (requesterRole !== 'Administrador') {
         return res.status(403).json({ msg: 'No tienes permiso para eliminar usuarios.' });
     }
-    if (useridToUpdate === adminuserid) {
+    if (useridToDelete === requesterId) {
         return res.status(400).json({ msg: 'No puedes eliminar tu propia cuenta.' });
     }
     if (!companyid) {
@@ -238,20 +241,33 @@ export const deleteUser = async (req, res) => {
     try {
         const pool = await getConnection();
         const userToDeleteResult = await pool.query(
-            `SELECT role, companyid FROM "Users" WHERE userid = $1`,
-            [useridToUpdate]
+            `SELECT role, companyid, is_protected FROM "Users" WHERE userid = $1`,
+            [useridToDelete]
         );
+
         if (userToDeleteResult.rows.length === 0) {
             return res.status(404).json({ msg: 'Usuario no encontrado.' });
         }
+
         const userToDeleteData = userToDeleteResult.rows[0];
+
         if (userToDeleteData.companyid !== companyid) {
             return res.status(403).json({ msg: 'No puedes eliminar usuarios de otra empresa.' });
         }
-        if (userToDeleteData.role === 'Administrador') {
-            return res.status(403).json({ msg: 'No se puede eliminar a otro administrador.' });
+
+        // Rule 1: The protected user can never be deleted.
+        if (userToDeleteData.is_protected) {
+            return res.status(403).json({ msg: 'No se puede eliminar al administrador principal de la empresa.' });
         }
-        await pool.query(`DELETE FROM "Users" WHERE userid = $1 AND companyid = $2`, [useridToUpdate, companyid]);
+
+        // Rule 2: Only the protected user can delete other administrators.
+        if (userToDeleteData.role === 'Administrador') {
+            if (!isRequesterProtected) {
+                return res.status(403).json({ msg: 'No tienes permiso para eliminar a otros administradores.' });
+            }
+        }
+
+        await pool.query(`DELETE FROM "Users" WHERE userid = $1 AND companyid = $2`, [useridToDelete, companyid]);
         res.json({ msg: 'Usuario eliminado.' });
     } catch (error) {
         console.error('Error en deleteUser:', error);

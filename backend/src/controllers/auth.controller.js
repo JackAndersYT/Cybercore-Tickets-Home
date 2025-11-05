@@ -36,8 +36,8 @@ export const registerCompany = async (req, res) => {
 
         // 5. Insert admin user
         await client.query(
-            'INSERT INTO "Users" (fullname, username, passwordhash, role, area, companyid) VALUES ($1, $2, $3, $4, $5, $6)',
-            [adminFullName, adminUsername, hashedPassword, 'Administrador', 'Soporte', companyId]
+            'INSERT INTO "Users" (fullname, username, passwordhash, role, area, companyid, is_protected) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [adminFullName, adminUsername, hashedPassword, 'Administrador', 'Soporte', companyId, true]
         );
 
         await client.query('COMMIT');
